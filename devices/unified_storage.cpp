@@ -45,7 +45,7 @@ void UnifiedStorage::init()
         };
         ret = esp_vfs_spiffs_register(&conf);
         if (ret != ESP_OK) {
-            printf("Failed to mount SPIFFS (%s)", esp_err_to_name(ret));
+            printf("Failed to mount SPIFFS (%s), maybe no spiffs partition specified?", esp_err_to_name(ret));
         } else {
             m_bFlashInited = true;
         }
@@ -81,7 +81,7 @@ void UnifiedStorage::init()
         sdmmc_card_t *card;
         esp_err_t ret = esp_vfs_fat_sdmmc_mount(SDPATH, &host, &slot_config, &mount_config, &card);
         if (ret != ESP_OK) {
-            printf("Failed to mount SD card (%s)", esp_err_to_name(ret));
+            printf("Failed to mount SD card (%s), maybe there is no SD card?", esp_err_to_name(ret));
         } else {
             m_bSDInited = true;
         }

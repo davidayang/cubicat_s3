@@ -83,7 +83,6 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
     // cubicat uses a protrait screen, if we want a landscape screen, rotate the screen 90 degrees
     if (width > height)
         lcdRotate(&m_dev, DIRECTION90);
-    fillScreen(BLACK);
     if (m_bDoubleBuffering) {
         swapQueue = xQueueCreate(1, sizeof(SwapBufferDesc));
         swapLock = xSemaphoreCreateBinary();
@@ -143,12 +142,15 @@ void Display::allocBackBuffer() {
     }
     if (!m_pBackBuffer)
         m_pBackBuffer = (uint16_t *)malloc(size);
+    assert(m_pBackBuffer);
+    memset(m_pBackBuffer,0, size);
     if (m_bDoubleBuffering) {
         m_pFrontBuffer = (uint16_t*)heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
-        if (!m_pFrontBuffer)
+        if (m_pFrontBuffer)
+            memset(m_pFrontBuffer,0, size);
+        else
             m_bDoubleBuffering = false;
     }
-    assert(m_pBackBuffer);
     m_bufferMutex = xSemaphoreCreateMutex();
 }   
 
@@ -298,7 +300,7 @@ void Display::_drawRect(int16_t xs, int16_t ys, uint16_t w, uint16_t h, uint16_t
                 continue;
             }
             // draw rectangle sections
-            if ((x >= rx1 && x < rx2) || (y >= ry1 && y < ry2)) {
+            if ((x >= rx1 && x <= rx2) || (y >= ry1 && y <= ry2)) {
                 if (fill || x < centerL || x >= centerR || y < centerT || y >= centerB) {
                     DrawPixel(x, y, color);
                 }
@@ -381,6 +383,7 @@ void Display::drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgH
     LOCK
     uint16_t width = imgWidth;
     uint16_t height = imgHeight;
+    m_dirtyWindow.combine({ (int16_t)x, (int16_t)y, (int16_t)(x + width), (int16_t)(y + height) });
     if (x + width > m_width)
         width = m_width - x;
     if (y + height > m_height)
@@ -390,11 +393,13 @@ void Display::drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgH
     }
 }
 void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t color, uint8_t lineSpacing, const FontData& fontData) {
-    int cursorPosX = xs;
-    int cursorPosY = ys;
+    int16_t cursorPosX = xs;
+    int16_t cursorPosY = ys;
     auto characters = splitUTF8(text);
+    LOCK
     // single glyph data len = 4 byte bbox + glyph width * glyph height / 8 (1 bit per pixel , 8 pixels for 1 byte) 
     const uint16_t SingleGlyphDataLen = 4 + ceil(fontData.fontSize * fontData.fontSize / 8.0f);
+    int16_t maxCursorY = 0;
     for (auto& character : characters) {
         uint8_t glyphWidth = fontData.fontSize;
         int index = getCharIndex((const char*)fontData.charSet, character.c_str());
@@ -424,6 +429,9 @@ void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t colo
                     }
                 }
             }
+            int curEndY = cursorPosY + y_offset + glyphHeight; 
+            if (curEndY > maxCursorY)
+                maxCursorY = curEndY;
         }
         cursorPosX += glyphWidth;
         if (character == "\n") {
@@ -431,4 +439,5 @@ void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t colo
             cursorPosY += fontData.fontSize + lineSpacing;
         }
     }
+    m_dirtyWindow.combine({ (int16_t)xs, (int16_t)ys, cursorPosX, maxCursorY});
 }

@@ -28,7 +28,7 @@ struct DirtyWindow {
     int16_t y1;
     int16_t x2;
     int16_t y2;
-    void invalidate() { x1 = y1 = (int16_t)(2<<15)-1; x2 = y2 = (int16_t)-(2<<15); }
+    void invalidate() { x1 = y1 = INT16_MAX; x2 = y2 = INT16_MIN; }
     bool valid() { return x1 < x2 && y1 < y2; }
     void combine(const DirtyWindow& other) {
         if (other.x1 > other.x2 || other.y1 > other.y2) {

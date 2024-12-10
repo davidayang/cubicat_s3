@@ -420,7 +420,7 @@ void lcdPushPixels(TFT_t * dev, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
         spi_master_write_command(dev, TFT_CMD_CASET); // set column(x) address
         spi_master_write_addr(dev, x1, x2);
         spi_master_write_command(dev, TFT_CMD_RASET); // set Page(y) address
-        spi_master_write_addr(dev, y, y + batchHeight - 1);
+        spi_master_write_addr(dev, y, y + batchHeight);
         spi_master_write_command(dev, TFT_CMD_RAMWR); // Memory Write
         spi_master_write_colors(dev, addr, writeCount);
         addr += writeCount;
