@@ -1,6 +1,6 @@
 #ifndef _WIDGET_H_
 #define _WIDGET_H_
-#include "node.h"
+#include "../node.h"
 
 
 class Widget : public Node {

@@ -1,7 +1,7 @@
 #ifndef _INPUT_MANAGER_H_
 #define _INPUT_MANAGER_H_
 #include <vector>
-#include "message/message_tube.h"
+#include "core/message/message_tube.h"
 #include <stdint.h>
 
 class InputManager : protected MessageDispatcher {

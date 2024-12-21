@@ -22,34 +22,34 @@
 #define MIC_CLK         8          
 #define MIC_DATA        9
 
+RenderBuffer RendererDisplay::getRenderBuffer() {
+    return {m_pBackBuffer, m_width, m_height};
+}
+// combine with renderer dirty window
 void RendererDisplay::onDrawFinish(const Region& dirtyRegion) {
     m_dirtyWindow.combine({ dirtyRegion.x, dirtyRegion.y,
      int16_t(dirtyRegion.x + dirtyRegion.w), int16_t(dirtyRegion.y + dirtyRegion.h) });
 }
-Region RendererDisplay::getForceDirtyRegion() {
-    if (!m_dirtyWindow.valid())
-        return {0, 0, 0, 0};
-    return {m_dirtyWindow.x1, m_dirtyWindow.y1, 
-    (uint16_t)(m_dirtyWindow.x2 - m_dirtyWindow.x1), (uint16_t)(m_dirtyWindow.y2 - m_dirtyWindow.y1)};
-}
-
 
 void Cubicat::begin()
 {
     lcd.init(TFT_WIDTH, TFT_HEIGHT, LCD_SDA, LCD_SCL, LCD_RST, LCD_DC, -1, LCD_TP_SDA, LCD_TP_SCL, LCD_TP_RST, LCD_TP_INT);
     speaker.init(SPKER_BCK, SPKER_WS, SPKER_DIN, SPKER_EN);
-    mic.init(-1, MIC_CLK, MIC_DATA);
-    storage.init();
+    mic.init(MIC_CLK, MIC_DATA);
     Wifi::init();
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
     engine.createSceneManager()->createUICanvas(TFT_WIDTH, TFT_HEIGHT);
-    engine.createRenderer(TFT_WIDTH, TFT_HEIGHT, &lcd);
+    engine.createRenderer(&lcd)->addDrawStageListener(&lcd);
     engine.createTickManager();
     engine.createScheduleManager();
+#endif
 }
 void Cubicat::loop(bool present)
 {
     lcd.touchLoop();
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
     engine.update();
+#endif
     if (present)
         lcd.swapBuffer();
 }

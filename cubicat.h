@@ -4,11 +4,20 @@
 #include "devices/devices.h"
 #include "graphic_engine/embed_game_engine.h"
 
-class RendererDisplay : public Display , public DisplayInterface{
+class RendererDisplay : public Display , public DisplayInterface, public DrawStageListener {
+    friend class Cubicat;
 public:
-    void onDrawFinish(const Region& dirtyRegion) override;
-    uint16_t* getBackBuffer() override {return m_pBackBuffer;}
-    Region getForceDirtyRegion() override;
+    // prevent assignment
+    RendererDisplay& operator=(const RendererDisplay&) = delete;
+    RendererDisplay(const RendererDisplay&) = delete;
+    // display interface implementation
+    RenderBuffer getRenderBuffer() override;
+    uint16_t getBackgroundColor() override {return m_backgroundColor;}
+    // draw stage listener implementation
+    virtual void onDrawStart(const Region& dirtyRegion) override {};
+    virtual void onDrawFinish(const Region& dirtyRegion) override;
+private:
+    RendererDisplay() = default;
 };
 
 class Cubicat : public Singleton<Cubicat>
@@ -23,7 +32,9 @@ public:
     Microphone      mic;
     Wifi            wifi;
     UnifiedStorage  storage;
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
     EmbedGameEngine engine;
+#endif
 private:
     Cubicat() = default;
     ~Cubicat() = default;

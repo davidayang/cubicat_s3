@@ -1,14 +1,14 @@
 #ifndef _RIGIDBODYCOMPONENT_H_
 #define _RIGIDBODYCOMPONENT_H_
 
-#include "component/component.h"
-#include "math/vector2.h"
-#include "box2d-lite/Body.h"
+#include "../component/component.h"
+#include "../math/vector2.h"
+#include "../box2d-lite/Body.h"
 #include <cstdint>
 #include <vector>
 #include <map>
 #include <string.h>
-#include "message/message_tube.h"
+#include "core/message/message_tube.h"
 
 class OrientationListener : protected MessageReceiver {
 public:

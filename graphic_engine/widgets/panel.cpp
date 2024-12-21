@@ -1,5 +1,5 @@
 #include "panel.h"
-#include "drawable/rectangle.h"
+#include "../drawable/rectangle.h"
 
 Panel::Panel(uint16_t width, uint16_t height, uint16_t color, bool fill, uint16_t cornerRadius, uint8_t lineWidth)
 : Widget(width, height) {

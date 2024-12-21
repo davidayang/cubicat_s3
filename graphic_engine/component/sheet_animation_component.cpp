@@ -1,11 +1,10 @@
 #include <cmath>
 #include "sheet_animation_component.h"
-#include "node.h"
-#include "math/vector3.h"
+#include "../node.h"
+#include "../math/vector3.h"
 
 
 SheetAnimationComponent::SheetAnimationComponent()
-: m_pSheet(nullptr),m_bLoop(true),m_bRevert(false),m_fSpeed(1.0f),m_fAnimElapse(0),m_pCurrentAnimData(nullptr)
 {
     m_currentMountingPoint.len = 0;
     m_currentMountingPoint.data = nullptr;

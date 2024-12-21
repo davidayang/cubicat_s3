@@ -2,11 +2,11 @@
 #define _DRAWABLE_H_
 #include <cstdint>
 #include "core/shared_pointer.h"
-#include "math/vector2.h"
+#include "../math/vector2.h"
 #include "core/rtti.h"
 #include "core/memory_object.h"
-#include "region.h"
-#include "math/constants.h"
+#include "../region.h"
+#include "../math/constants.h"
 
 
 class Drawable : public RTTI, public MemoryObject
@@ -14,7 +14,7 @@ class Drawable : public RTTI, public MemoryObject
 public:
     DECLARE_RTTI_ROOT(Drawable);
     virtual ~Drawable() {}
-    virtual const uint16_t* getDrawData() = 0;
+    virtual const uint16_t* getDrawData()  __attribute__((always_inline)) = 0;
     virtual void update(const Vector2& pos,const Vector2& scale, int16_t rotation);
     uint32_t getId() {return m_id;}
     const Vector2& getSize() {return m_size;}
@@ -30,9 +30,9 @@ public:
     uint8_t getBPP() {return m_bpp;}
     const Vector2& getPivot() {return m_pivot;} 
     void setPivot(float x, float y) {m_pivot.x = x; m_pivot.y = y;}
-    bool readPixel(uint16_t x, uint16_t y, uint16_t* value);
+    bool readPixel(int16_t x, int16_t y, uint16_t* value);
     // read pixel without bounds checking
-    uint16_t readPixelUnsafe(uint16_t x, uint16_t y);
+    uint16_t readPixelUnsafe(uint16_t x, uint16_t y) __attribute__((always_inline));
     void setRedraw(bool redraw) {m_bRedraw = redraw;}
     bool needRedraw() {return m_bRedraw;}
     Region getBoundingBox() {return m_boundingBox;}
@@ -68,12 +68,13 @@ inline void Drawable::update(const Vector2& pos,const Vector2& scale, int16_t ro
         updateBoundingBox();
     }
 }
-inline bool Drawable::readPixel(uint16_t x, uint16_t y, uint16_t* value) {
+inline bool Drawable::readPixel(int16_t x, int16_t y, uint16_t* value) {
     if (x < 0 || x >= m_size.x || y < 0 || y >= m_size.y)
         return false;
     *value = readPixelUnsafe(x, y);
     return true;
 }
+
 inline uint16_t Drawable::readPixelUnsafe(uint16_t x, uint16_t y) {
     const uint16_t* data = getDrawData();
     uint32_t offset = y * (uint16_t)m_size.x + x;

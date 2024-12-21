@@ -11,7 +11,7 @@
 #include "input_manager.h"
 #include "component/sheet_animation_component.h"
 #include "component/rigidbody_component.h"
-#include "message/message_tube.h"
+#include "core/message/message_tube.h"
 #include "schedule_manager.h"
 
 class EmbedGameEngine
@@ -23,11 +23,8 @@ public:
     TickManager* createTickManager();
     ScheduleManager* createScheduleManager();
     // scene graph renderer
-    // @param width viewport width
-    // @param height viewport height
     // @param displayInterface draw interface
-    // @param displayParam custom parameter passed to display interface
-    Renderer* createRenderer(uint32_t width, uint32_t height, DisplayInterface* backBuffer);
+    Renderer* createRenderer(DisplayInterface* backBuffer);
     void update();
     void setFPS(uint16_t fps) {m_FPS = fps;}
     float getFPS();

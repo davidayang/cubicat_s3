@@ -14,12 +14,12 @@
 #define YY:MM:DD "%y:%m:%d %H:%M:%S"
 #define YY_MM_DD "%y-%m-%d"
 
-#define ExeTime(code)                        \
-    {                                        \
-        unsigned long startTime = millis();  \
-        code;                                \
-        unsigned long endTime = millis();    \
-        printf("func:%s line[%d]: %ld ms \n", __FUNCTION__, __LINE__, endTime - startTime); \
+#define ExeTime(code)                  \
+    {                                  \
+        int64_t startTime = micros();  \
+        code;                          \
+        int64_t endTime = micros();    \
+        printf("func:%s line[%d]: %ld ms %ld us\n", __FUNCTION__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
     }
 
 const int headerSize = 44;
@@ -48,6 +48,9 @@ inline std::vector<std::string> splitString(const std::string& str, const char* 
 }
 inline uint32_t millis() {
     return esp_timer_get_time() / 1000;
+}
+inline int64_t micros() {
+    return esp_timer_get_time();
 }
 inline void memoryReport() {
     auto size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);

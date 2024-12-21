@@ -5,14 +5,14 @@
 #include "math/constants.h"
 #include "utils/logger.h"
 
-Renderer::Renderer(uint32_t screenWidth, uint32_t screenHeight, DisplayInterface* backBuffer)
+Renderer::Renderer(DisplayInterface* backBuffer)
 : m_pBackBufferInterface(backBuffer)
 {
-    assert(m_pBackBufferInterface);
+    auto buffer = m_pBackBufferInterface->getRenderBuffer();
     m_viewPort.x = 0;
     m_viewPort.y = 0;
-    m_viewPort.w = screenWidth;
-    m_viewPort.h = screenHeight;
+    m_viewPort.w = buffer.width;
+    m_viewPort.h = buffer.height;
 }
 Renderer::~Renderer() {
 }
@@ -63,7 +63,7 @@ bool VPClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* offse
 void Renderer::draw(Drawable *drawable)
 {
     const uint16_t *data = drawable->getDrawData();
-    uint16_t* backBuffer = m_pBackBufferInterface->getBackBuffer();
+    uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
     if (data && backBuffer)
     {
         auto hasMask = drawable->hasMask();
@@ -74,7 +74,6 @@ void Renderer::draw(Drawable *drawable)
         bool hasScale = abs(scale.x - 1) > 0.001 || abs(scale.y - 1) > 0.001;
         bool hasRot = angle != 0;
         const Vector2&  size = drawable->getSize();
-        const Vector2&  pivot = drawable->getPivot();
         // center point of origin picture
         uint16_t originCenterX = (uint16_t)size.x >> 1;
         uint16_t originCenterY = (uint16_t)size.y >> 1;
@@ -94,13 +93,15 @@ void Renderer::draw(Drawable *drawable)
             uint16_t scaler = 1 << FP_SCALE;
             int16_t scaleX = scale.x * scaler;
             int16_t scaleY = scale.y * scaler;
+            int16_t _offx = offsetx - centerX;
+            int16_t _offy = offsety - centerY;
             for (uint16_t j = 0; j < bbox.h; ++j)
             {
                 for (uint16_t i = 0; i < bbox.w; ++i)
                 {
                     // _x, _y为缩放旋转后图片的像素坐标,图片中心为原点
-                    int16_t _x = i + offsetx - centerX;
-                    int16_t _y = j + offsety - centerY;
+                    int16_t _x = i + _offx;
+                    int16_t _y = j + _offy;
                     if (hasRot) {
                         int16_t _xr = ((_x * cosa - _y * sina) >> FP_SCALE);
                         int16_t _yr = ((_x * sina + _y * cosa) >> FP_SCALE);
@@ -138,14 +139,13 @@ void Renderer::draw(Drawable *drawable)
 }
 void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
     m_dirtyWindow = m_lastHotRegion;
-    m_dirtyWindow.combine(m_pBackBufferInterface->getForceDirtyRegion());
-    std::unordered_map<uint32_t, Region> drawableRegion;
+    std::unordered_map<uint32_t, Region> drawableRegions;
     m_hotRegion.zero();
     for (auto& drawable : drawables) {
         uint32_t id = drawable->getId();
         auto box = drawable->getBoundingBox();
         box.y = m_viewPort.h - box.y;
-        drawableRegion[id] = box;
+        drawableRegions[id] = box;
         m_lastDrawableRegion.erase(id);
         if (drawable->needRedraw()) {
             m_hotRegion.combine(box);
@@ -156,7 +156,8 @@ void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
         m_dirtyWindow.combine(pair.second);
     }
     // swap last drawable region
-    m_lastDrawableRegion = drawableRegion;
+    m_lastDrawableRegion = drawableRegions;
+    VPClip(m_viewPort, m_hotRegion, nullptr, nullptr);
     m_dirtyWindow.combine(m_hotRegion);
     VPClip(m_viewPort, m_dirtyWindow, nullptr, nullptr);
 }
@@ -164,14 +165,20 @@ void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
 void Renderer::renderObjects(const std::vector<DrawablePtr>& drawables)
 {
     calculateDirtyWindow(drawables);
-    // only update dirty region
+    clear();
+    for (auto it = m_drawStageListeners.rbegin(); it != m_drawStageListeners.rend(); ++it) {
+        (*it)->onDrawStart(m_dirtyWindow);
+    }
+    // only draw dirty region
     if (m_dirtyWindow.w > 0 && m_dirtyWindow.h > 0) {
         // draw all drawables
         for (auto drawable : drawables)
         {
             draw(drawable);
         }
-        m_pBackBufferInterface->onDrawFinish(m_dirtyWindow);
+    }
+    for (auto it = m_drawStageListeners.rbegin(); it != m_drawStageListeners.rend(); ++it) {
+        (*it)->onDrawFinish(m_dirtyWindow);
     }
     m_lastHotRegion = m_hotRegion;
 }
@@ -179,16 +186,16 @@ void Renderer::renderObjects(const std::vector<DrawablePtr>& drawables)
 // x, y, w, h需要是未做viewport裁切的数据，这样才能计算数据偏移
 void Renderer::pushImage(int16_t x, int16_t y, uint16_t w, uint16_t h, const uint16_t *data, bool hasMask, uint16_t maskColor)
 {
-    auto backBuffer = m_pBackBufferInterface->getBackBuffer();
+    auto backBuffer = m_pBackBufferInterface->getRenderBuffer();
     Region region = {x, y, w, h};
     uint16_t offsetx, offsety;
-    if (!backBuffer || !VPClip(m_dirtyWindow, region, &offsetx, &offsety)) 
+    if (!backBuffer.data || !VPClip(m_dirtyWindow, region, &offsetx, &offsety)) 
         return;
     // calculate source start index
     int start_index_dest = region.y * m_viewPort.w + region.x;
     int start_index_src = offsety * w + offsetx;
     // calculate target start pointer
-    auto dest_ptr = backBuffer + start_index_dest;
+    auto dest_ptr = backBuffer.data + start_index_dest;
     auto src_ptr = data + start_index_src;
     // calculate bytes per row（2 bytes per pixel）
     int bytes_per_row = w * sizeof(uint16_t);
@@ -214,5 +221,39 @@ void Renderer::pushImage(int16_t x, int16_t y, uint16_t w, uint16_t h, const uin
         }
         src_ptr += w - region.w;
         dest_ptr += m_viewPort.w - region.w;
+    }
+}
+
+void Renderer::clear() {
+    if (!m_bAutoClear)
+        return;
+    auto backBuffer = m_pBackBufferInterface->getRenderBuffer();
+    auto data = backBuffer.data;
+    if (!data) {
+        return;
+    }
+    auto bgColor = m_pBackBufferInterface->getBackgroundColor();
+    auto rect = m_dirtyWindow;
+    rect.combine(m_lastHotRegion);
+    for (int row = rect.y; row < rect.y + rect.h; row++) {
+        for (int col = rect.x; col < rect.x + rect.w; col++) {
+            data[row * m_viewPort.w + col] = bgColor;
+        }
+    }
+}
+void Renderer::addDrawStageListener(DrawStageListener* listener) {
+    for (auto& l : m_drawStageListeners) {  
+        if (l == listener) {
+            return;
+        }
+    }
+    m_drawStageListeners.push_back(listener);
+}
+void Renderer::removeDrawStageListener(DrawStageListener* listener) {
+    for (auto it = m_drawStageListeners.begin(); it != m_drawStageListeners.end(); it++) {
+        if (*it == listener) {
+            m_drawStageListeners.erase(it);
+            break;
+        }
     }
 }

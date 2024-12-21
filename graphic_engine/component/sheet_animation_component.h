@@ -1,13 +1,13 @@
 #ifndef _SHEETANIMATIONCOMPONENT_H_
 #define _SHEETANIMATIONCOMPONENT_H_
 #include "component.h"
-#include "drawable/sprite_sheet.h"
+#include "../drawable/sprite_sheet.h"
 #include <string.h>
 #include <vector>
 #include <map>
-#include "message/message_tube.h"
-#include "drawable/image_data.h"
-#include "mounting_point.h"
+#include "core/message/message_tube.h"
+#include "../drawable/image_data.h"
+#include "../mounting_point.h"
 
 struct AnimData {
     std::vector<unsigned char>  indices;
@@ -30,15 +30,15 @@ public:
     void onMessage(int id, const void* msg);
 private:
     SheetAnimationComponent();
-    bool            m_bLoop;
-    bool            m_bRevert;
-    float           m_fAnimElapse;
-    SpriteSheet*    m_pSheet;
+    bool            m_bLoop = true;
+    bool            m_bRevert = false;
+    float           m_fAnimElapse = 0.0f;
+    SpriteSheet*    m_pSheet = nullptr;
     AnimMap         m_Anims;
     std::string     m_currentAnim;
-    AnimData*       m_pCurrentAnimData;
+    AnimData*       m_pCurrentAnimData = nullptr;
     MountingPoint   m_currentMountingPoint;
-    float           m_fSpeed;
+    float           m_fSpeed = 1.0f;
 
     std::map<std::string, ImageData>        m_extraAnimDataLookup;
     AnimMap                                 m_extraAnims;

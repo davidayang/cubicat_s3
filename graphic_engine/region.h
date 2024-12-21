@@ -10,6 +10,7 @@ struct Region {
     uint16_t    h;
     Region():x(0),y(0),w(0),h(0) {}
     Region(int16_t x, int16_t y, uint16_t w, uint16_t h):x(x),y(y),w(w),h(h) {}
+    bool valid() const { return w > 0 && h > 0; }
     void zero() {
         x = 0;
         y = 0;

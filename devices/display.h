@@ -3,7 +3,9 @@
 #include "bb_captouch.h"
 #include "st7789/st7789.h"
 #include <algorithm>
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
 #include "graphic_engine/drawable/font.h"
+#endif
 
 class TouchListener {
 public:
@@ -29,9 +31,13 @@ struct DirtyWindow {
     int16_t x2;
     int16_t y2;
     void invalidate() { x1 = y1 = INT16_MAX; x2 = y2 = INT16_MIN; }
-    bool valid() { return x1 < x2 && y1 < y2; }
+    bool valid() const { return x1 < x2 && y1 < y2; }
     void combine(const DirtyWindow& other) {
-        if (other.x1 > other.x2 || other.y1 > other.y2) {
+        if (!other.valid()) {
+            return;
+        }
+        if (!valid()) {
+            *this = other;
             return;
         }
         x1 = std::min(x1, other.x1);
@@ -44,16 +50,16 @@ struct DirtyWindow {
 class Display {
     friend class Cubicat;
 public:
+    Display(const Display& ) = delete;
     void init(uint16_t width, uint16_t height, int sda, int scl, int rst, int dc, int blk = -1,
-     int touchSda = -1, int touchScl = -1, int touchRst = -1, int touchInt = -1, bool doubleBuffering = true);
+     int touchSda = -1, int touchScl = -1, int touchRst = -1, int touchInt = -1);
     void setTouchListener(TouchListener* listener);
     const TOUCHINFO& getTouchInfo();
     bool isTouched();
     uint8_t getRotation() { return m_rotation; }
-    // direct push pixels to screen, x, y is the top left corner
-    void pushPixels(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,uint16_t* data);
+    // directly push pixels to screen
+    void pushPixelsToScreen(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t*);
     void swapBuffer();
-    uint16_t* getBackBuffer() { return m_pBackBuffer; }
     uint16_t width() { return m_width; }
     uint16_t height() { return m_height; }
     void touchLoop();
@@ -69,7 +75,9 @@ public:
     void fillCircle(int16_t x, int16_t y, uint16_t radius, uint16_t color);
     void fillScreen(uint16_t color);
     void drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgHeight, uint16_t* img);
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
     void drawText(uint16_t x, uint16_t y, const char* text, uint16_t color, uint8_t lineSpacing = 2, const FontData& fontData = DefaultFontData);
+#endif
 protected:
     Display();
     ~Display();
@@ -86,10 +94,11 @@ protected:
     TOUCHINFO           m_touchInfo;
     uint16_t*           m_pBackBuffer = nullptr;
     uint16_t*           m_pFrontBuffer = nullptr;
-    bool                m_bDoubleBuffering = true;
+    bool                m_bDoubleBuffering = false;
     DirtyWindow         m_dirtyWindow;
     TouchListener*      m_pTouchListener = nullptr;
     SemaphoreHandle_t   m_bufferMutex = nullptr;
+    uint16_t            m_backgroundColor = 0;
 };
 
 #endif

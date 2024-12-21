@@ -5,6 +5,7 @@
 #include "esp_vfs_fat.h"
 #include "nvs_flash.h"
 #include <string.h>
+#include "utils/logger.h"
 
 #define FLASHPATH "/spiffs"
 #define SDPATH "/sdcard"
@@ -27,7 +28,7 @@ UnifiedStorage::~UnifiedStorage()
 }
 
 
-void UnifiedStorage::init()
+void UnifiedStorage::mount()
 {
     // init nvs
     esp_err_t ret = nvs_flash_init();
@@ -39,13 +40,13 @@ void UnifiedStorage::init()
     if (!m_bFlashInited) {
         esp_vfs_spiffs_conf_t conf = {
             .base_path = FLASHPATH,
-            .partition_label = "spiffs",
+            .partition_label = NULL,
             .max_files = 5,
-            .format_if_mount_failed = false
+            .format_if_mount_failed = true
         };
         ret = esp_vfs_spiffs_register(&conf);
         if (ret != ESP_OK) {
-            printf("Failed to mount SPIFFS (%s), maybe no spiffs partition specified?", esp_err_to_name(ret));
+            printf("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
         } else {
             m_bFlashInited = true;
         }
@@ -87,8 +88,21 @@ void UnifiedStorage::init()
         }
     }
 }
-void UnifiedStorage::deinit() {
-    
+bool UnifiedStorage::isSPIFFSInit() {
+    LOGD("spiffs not initialized, call init() first.\n");
+    return m_bFlashInited;
+}
+bool UnifiedStorage::isSDInit() {
+    LOGD("sd not initialized, call init() first. \n");
+    return m_bSDInited;
+}
+void UnifiedStorage::unmount() {
+    auto ret = esp_vfs_fat_sdmmc_unmount();
+    if (ret != ESP_OK) {
+        LOGE("Failed to unmount FAT filesystem. Error: %s\n", esp_err_to_name(ret));
+        return;
+    }
+    m_bSDInited = false;
 }
 nvs_handle_t nvsWriteHandle() {
     nvs_handle_t nvs_handle;
@@ -107,26 +121,44 @@ nvs_handle_t nvsReadHandle() {
     return nvs_handle;
 }
 void UnifiedStorage::setString(const char* key, const char* value) {
+    if (!isSPIFFSInit()) {
+        return;
+    }
     nvs_set_str(nvsWriteHandle(), key, value);
 }   
 void UnifiedStorage::setInt(const char* key, int value) {
+    if (!isSPIFFSInit()) {
+        return;
+    }
     nvs_set_i32(nvsWriteHandle(), key, value);
 }
 void UnifiedStorage::setFloat(const char* key, float value) {
+    if (!isSPIFFSInit()) {
+        return;
+    }
     char str[32] = {0};
     sprintf(str, "%f", value);
     setString(key, str);
 }
 int UnifiedStorage::getInt(const char* key) {
+    if (!isSPIFFSInit()) {
+        return 0;
+    }
     int32_t out = 0;
     nvs_get_i32(nvsReadHandle(), key, &out);
     return out;
 }
 float UnifiedStorage::getFloat(const char* key) {
+    if (!isSPIFFSInit()) {
+        return 0.0f;
+    }
     const char* str = getString(key);
     return atof(str);
 }
 const char* UnifiedStorage::getString(const char* key) {
+    if (!isSPIFFSInit()) {
+        return nullptr;
+    }
     static char temp[4000];
     memset(temp, 0, 4000);
     size_t len = 0;

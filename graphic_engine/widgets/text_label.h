@@ -1,7 +1,7 @@
 #ifndef _TEXT_LABEL_H_
 #define _TEXT_LABEL_H_
 #include "widget.h"
-#include "drawable/BMFont.h"
+#include "../drawable/BMFont.h"
 
 class TextLabel : public Widget {
 public:

@@ -1,5 +1,5 @@
 #include "constants.h"
-#include "definitions.h"
+#include "../definitions.h"
 #include <cmath>
 
 int16_t sinArray[360];

@@ -5,6 +5,9 @@
 class Wifi {
     friend class Cubicat;
 public:
+    Wifi(const Wifi&) = delete;
+    Wifi& operator=(const Wifi&) = delete;
+    ~Wifi();
     static void init();
     static bool connect(const char* ssid, const char* password);
     static bool isConnected() { return m_bConnected; }

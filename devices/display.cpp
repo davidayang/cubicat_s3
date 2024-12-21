@@ -4,9 +4,10 @@
 #include "utils/logger.h"
 #include "utils/helper.h"
 #include <cmath>
+#include <string.h>
 
 QueueHandle_t swapQueue;
-QueueHandle_t swapLock;
+volatile bool g_bPresented = true;
 
 struct SwapBufferDesc {
     uint16_t* buffer;
@@ -36,10 +37,9 @@ void swapBufferTask(void* param) {
     {
         SwapBufferDesc desc;
         if (xQueueReceive(swapQueue, &desc, portMAX_DELAY) == pdTRUE) {
-            xSemaphoreTake(swapLock, portMAX_DELAY);
             lcdPushPixels(desc.tft, desc.dirtyWindow.x1, desc.dirtyWindow.y1, 
             desc.dirtyWindow.x2, desc.dirtyWindow.y2,desc.buffer);
-            xSemaphoreGive(swapLock);
+            g_bPresented = true;
         } else {
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
@@ -47,30 +47,36 @@ void swapBufferTask(void* param) {
 }
 
 Display::Display()
+#ifdef CONFIG_DOUBLE_BUFFERING
+ : m_bDoubleBuffering(true)
+#endif
 {
     m_touchInfo.count = 0;
     m_dirtyWindow.invalidate();
 }
 Display::~Display()
 {
-    if (m_pBackBuffer)
+    if (m_pBackBuffer) {
         free(m_pBackBuffer);
-    if (m_pFrontBuffer)
+        m_pBackBuffer = nullptr;
+    }
+    if (m_pFrontBuffer) {
         free(m_pFrontBuffer);
+        m_pFrontBuffer = nullptr;
+    }
     if (m_bufferMutex) {
         vSemaphoreDelete(m_bufferMutex);
         m_bufferMutex = nullptr;
     }
 }
 
-void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, int dc, int blk,
- int touchSda, int touchScl, int touchRst, int touchInt, bool doubleBuffering)
+void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, int dc, int blk, int touchSda,
+ int touchScl, int touchRst, int touchInt)
 {
     if (m_bInited)
         return;
     m_width = width;
     m_height = height;
-    m_bDoubleBuffering = doubleBuffering;
     allocBackBuffer();
     m_interruptGPIO = touchInt;
     m_rotation = width>height ? 1 : 0;
@@ -83,12 +89,12 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
     // cubicat uses a protrait screen, if we want a landscape screen, rotate the screen 90 degrees
     if (width > height)
         lcdRotate(&m_dev, DIRECTION90);
+#ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         swapQueue = xQueueCreate(1, sizeof(SwapBufferDesc));
-        swapLock = xSemaphoreCreateBinary();
-        xSemaphoreGive(swapLock);
-        xTaskCreatePinnedToCore(swapBufferTask, "swap buffer", 1024*4, this, 1, NULL, 1);
+        xTaskCreatePinnedToCore(swapBufferTask, "swap buffer", 1024*4, this, 1, NULL, getSubCoreId());
     }
+#endif
     // first swap to clear the screen
     swapBuffer();
 }
@@ -124,10 +130,6 @@ void Display::touchLoop() {
         m_pTouchListener->onTouch(info);
     }
 }
-void Display::pushPixels(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t* data) {
-    LOCK
-    lcdPushPixels(&m_dev, x0, y0, x1, y1, data);
-}
 
 void Display::allocBackBuffer() {
     if (m_pBackBuffer)
@@ -144,6 +146,7 @@ void Display::allocBackBuffer() {
         m_pBackBuffer = (uint16_t *)malloc(size);
     assert(m_pBackBuffer);
     memset(m_pBackBuffer,0, size);
+#ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         m_pFrontBuffer = (uint16_t*)heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
         if (m_pFrontBuffer)
@@ -151,9 +154,12 @@ void Display::allocBackBuffer() {
         else
             m_bDoubleBuffering = false;
     }
+#endif
     m_bufferMutex = xSemaphoreCreateMutex();
 }   
-
+void Display::pushPixelsToScreen(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t* pixels) {
+    lcdPushPixels(&m_dev, x1, y1, x2, y2, pixels);
+}
 void Display::swapBuffer() {
     if (!m_dirtyWindow.valid())
         return;
@@ -169,24 +175,29 @@ void Display::swapBuffer() {
         x2 = m_width - 1;
     if (y2 >= m_height)
         y2 = m_height - 1;
+    uint16_t rectWidth = x2 - x1 + 1;
+    uint16_t rectHeight = y2 - y1 + 1;
+#ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
-        SwapBufferDesc desc;
-        desc.buffer = m_pBackBuffer + y1 * m_width;
-        desc.dirtyWindow = { x1, y1, x2, y2 };
-        desc.tft = &m_dev;
-        desc.viewHeight = m_height;
-        desc.viewWidth = m_width;
-        if (xQueueSend(swapQueue, &desc, 0) == pdTRUE) {
-            // swap two buffers
-            xSemaphoreTake(swapLock, portMAX_DELAY);
-            uint16_t* temp = m_pBackBuffer;
-            m_pBackBuffer = m_pFrontBuffer;
-            m_pFrontBuffer = temp;
-            xSemaphoreGive(swapLock);
+        if (g_bPresented) {
+            memcpy(m_pFrontBuffer + y1 * m_width, m_pBackBuffer + y1 * m_width, rectWidth * rectHeight * sizeof(uint16_t));
+            SwapBufferDesc desc;
+            desc.buffer = m_pFrontBuffer + y1 * m_width;
+            desc.dirtyWindow = { x1, y1, x2, y2};
+            desc.tft = &m_dev;
+            desc.viewHeight = m_height;
+            desc.viewWidth = m_width;
+            if (xQueueSend(swapQueue, &desc, portMAX_DELAY) == pdTRUE) {
+                g_bPresented = false;
+            }
         }
     } else {
+#endif
+        LOCK
         lcdPushPixels(&m_dev, x1, y1, x2, y2, m_pBackBuffer + y1 * m_width);
+#ifdef CONFIG_DOUBLE_BUFFERING
     }
+#endif
     m_dirtyWindow.invalidate();
 }
 
@@ -376,6 +387,7 @@ void Display::fillCircle(int16_t x, int16_t y, uint16_t r, uint16_t color) {
 }
 void Display::fillScreen(uint16_t color) {
     fillRect(0, 0, m_width, m_height, color);
+    m_backgroundColor = color;
 }
 void Display::drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgHeight, uint16_t* img) {
     if (x >= m_width || y >= m_height)
@@ -392,6 +404,7 @@ void Display::drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgH
         memcpy(m_pBackBuffer + x + y * m_width, img + y * imgWidth, width * sizeof(uint16_t));
     }
 }
+#if !CONFIG_REMOVE_GRAPHIC_ENGINE
 void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t color, uint8_t lineSpacing, const FontData& fontData) {
     int16_t cursorPosX = xs;
     int16_t cursorPosY = ys;
@@ -418,7 +431,7 @@ void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t colo
                     uint16_t vposx = cursorPosX + x + x_offset;
                     uint16_t vposy = cursorPosY + y + y_offset;
                     // 检测是否超出了view port范围
-                    if (vposx > m_width || vposy > m_height) {
+                    if (vposx > m_width - 1 || vposy > m_height - 1) {
                         continue;
                     }
                     // 字模中的数据偏移量
@@ -441,3 +454,4 @@ void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t colo
     }
     m_dirtyWindow.combine({ (int16_t)xs, (int16_t)ys, cursorPosX, maxCursorY});
 }
+#endif

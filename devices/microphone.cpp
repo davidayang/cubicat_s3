@@ -1,30 +1,26 @@
 #include "microphone.h"
+#include <driver/i2s_pdm.h>
+#include <driver/i2s_std.h>
 #include "esp_psram.h"
+#include <string.h>
+#include "utils/logger.h"
 
-#define BuffLen  1024 * 4
-char *audioBuffer = nullptr;
-uint8_t *scaledBuffer = nullptr;
-SemaphoreHandle_t buffLock;
-Microphone::Microphone(uint16_t sampleRate, uint8_t bitPerSample, bool pdm)
-: m_bPdm(pdm)
+#define BuffLen  1024 * 64
+
+struct AudioTaskParam {
+    i2s_chan_handle_t handle;
+    char* cacheBuffer;
+    uint8_t* audioBuffer;
+    SemaphoreHandle_t buffLock;
+};
+Microphone::Microphone(uint16_t sampleRate, uint8_t bitPerSample)
+: m_sampleRate(sampleRate), m_bitPerSample(bitPerSample)
 {
-    auto mode = I2S_MODE_MASTER | I2S_MODE_RX;
-    if (pdm)
-        mode |= I2S_MODE_PDM;
-    m_config.mode = i2s_mode_t(mode);
-    m_config.sample_rate = sampleRate; // 设置采样率
-    m_config.bits_per_sample = i2s_bits_per_sample_t(bitPerSample);
-    m_config.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT; // 只接收左声道数据
-    if (pdm)
-        m_config.communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_PCM_SHORT);
-    else
-        m_config.communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_STAND_I2S);
-    m_config.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
-    m_config.dma_desc_num = 4;
-    m_config.dma_frame_num = 512;
-    m_config.use_apll = true;
 }
-size_t Microphone::getBuffLen() {
+Microphone::~Microphone() {
+    shutdown();
+}
+size_t Microphone::getBufferLen() {
     return BuffLen;
 }
 void i2s_adc_data_scale(uint8_t *d_buff, char *s_buff, uint32_t len)
@@ -39,78 +35,137 @@ void i2s_adc_data_scale(uint8_t *d_buff, char *s_buff, uint32_t len)
     }
 }
 
-void readTask(void *param)
+void audioReadTask(void *param)
 {
-    int *pins = (int *)param;
-    i2s_pin_config_t pinConfig;
-    pinConfig.bck_io_num = pins[0];
-    pinConfig.ws_io_num = pins[1];
-    pinConfig.data_out_num = I2S_PIN_NO_CHANGE;
-    pinConfig.data_in_num = pins[2];
-    i2s_port_t busNum = (i2s_port_t)pins[3];
-    delete pins;
-    if (ESP_OK != i2s_set_pin(busNum, &pinConfig))
-    {
-        printf("i2s_set_pin failed! \n");
-        return;
-    }
-    while (audioBuffer)
+    AudioTaskParam* audioParam = (AudioTaskParam *)param;
+    i2s_chan_handle_t handle = audioParam->handle;
+    char* cacheBuffer = audioParam->cacheBuffer;
+    uint8_t* audioBuffer = audioParam->audioBuffer;
+    SemaphoreHandle_t buffLock = audioParam->buffLock;
+    delete audioParam;
+    while (1)
     {
         size_t bytesRead = 0;
-        esp_err_t error = i2s_read(busNum, audioBuffer, BuffLen, &bytesRead, portMAX_DELAY);
-        xSemaphoreTake(buffLock, 1000);
-        i2s_adc_data_scale(scaledBuffer, audioBuffer, bytesRead);
-        xSemaphoreGive(buffLock);
+        i2s_channel_read(handle, cacheBuffer, BuffLen, &bytesRead, portMAX_DELAY);
+        if (xSemaphoreTake(buffLock, 1000) == pdPASS) {
+            i2s_adc_data_scale(audioBuffer, cacheBuffer, bytesRead);
+            xSemaphoreGive(buffLock);
+        }
     }
 }
 
-void Microphone::init(int sclk, int ws, int sd,int busNum)
+void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
 {
     if (m_bInited)
         return;
-    buffLock = xSemaphoreCreateBinary();
-    xSemaphoreGive(buffLock);
-    if (m_bPdm)
-        m_busNum = I2S_NUM_0;
-    else
-        m_busNum = busNum;
-    if (esp_psram_init() == ESP_OK) {
-        audioBuffer = (char *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
-        scaledBuffer = (uint8_t *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
+    i2s_port_t i2sPort = pdm?I2S_NUM_0:(i2s_port_t)busNum;
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(i2sPort, I2S_ROLE_MASTER);
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, nullptr, &m_channelHandle));
+    if (pdm) {
+        i2s_pdm_rx_config_t config = {
+            .clk_cfg = I2S_PDM_RX_CLK_DEFAULT_CONFIG(m_sampleRate),
+            .slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG((i2s_data_bit_width_t)m_bitPerSample, I2S_SLOT_MODE_MONO),
+            .gpio_cfg = {
+                .clk = (gpio_num_t)clk,
+                .din = (gpio_num_t)din,
+                .invert_flags = {
+                    .clk_inv = false,
+                },
+            },
+        };
+        ESP_ERROR_CHECK(i2s_channel_init_pdm_rx_mode(m_channelHandle, &config));
     } else {
-        audioBuffer = (char *)calloc(BuffLen, sizeof(char));
-        scaledBuffer = (uint8_t *)calloc(BuffLen, sizeof(char));
+        i2s_std_config_t config = {
+            .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(m_sampleRate),
+            .slot_cfg = I2S_STD_PCM_SLOT_DEFAULT_CONFIG((i2s_data_bit_width_t)m_bitPerSample, I2S_SLOT_MODE_MONO),
+            .gpio_cfg = {
+                .mclk = GPIO_NUM_NC,
+                .bclk = (gpio_num_t)clk,
+                .ws = (gpio_num_t)ws,
+                .dout = GPIO_NUM_NC,
+                .din = (gpio_num_t)din,
+                .invert_flags = {
+                    .mclk_inv = false,
+                    .bclk_inv = false,
+                    .ws_inv = false,
+                },
+            },
+        };
+        ESP_ERROR_CHECK(i2s_channel_init_std_mode(m_channelHandle, &config));
     }
-    if (ESP_OK != i2s_driver_install((i2s_port_t)m_busNum, &m_config, 0, NULL))
-    {
-        printf("i2s_driver_install failed! \n");
-        free(audioBuffer);
-        free(scaledBuffer);
+    ESP_ERROR_CHECK(i2s_channel_enable(m_channelHandle));
+    if (esp_psram_init() == ESP_OK) {
+        m_cacheBuffer = (char *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
+        m_audioBuffer = (uint8_t *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
+    } else {
+        m_cacheBuffer = (char *)calloc(BuffLen, sizeof(char));
+        m_audioBuffer = (uint8_t *)calloc(BuffLen, sizeof(char));
+    }
+    assert(m_cacheBuffer && m_audioBuffer);
+    m_buffLock = xSemaphoreCreateMutex();
+    xSemaphoreGive(m_buffLock);
+    auto id = xPortGetCoreID();
+    int coreId = (id + 1) % portNUM_PROCESSORS;
+    AudioTaskParam* param = new AudioTaskParam();
+    param->handle = m_channelHandle;
+    param->cacheBuffer = m_cacheBuffer;
+    param->audioBuffer = m_audioBuffer;
+    param->buffLock = m_buffLock;
+    if (xTaskCreatePinnedToCore(audioReadTask, "audio task", 1024*8, param, 1, &m_taskHandle, coreId) != pdPASS) {
+        LOGE("Microphone create task failed");
+        i2s_channel_disable(m_channelHandle);
+        i2s_del_channel(m_channelHandle);
+        free(m_cacheBuffer);
+        m_cacheBuffer = nullptr;
+        free(m_audioBuffer);
+        m_audioBuffer = nullptr;
+        vSemaphoreDelete(m_buffLock);
         return;
     }
-    auto id = xPortGetCoreID();
-    int idAudio = (id + 1) % portNUM_PROCESSORS;
-    int *param = new int[4];
-    param[0] = sclk;
-    param[1] = ws;
-    param[2] = sd;
-    param[3] = m_busNum;
-    xTaskCreatePinnedToCore(readTask, "audio task", 1024, param, 1, NULL, idAudio);
     m_bInited = true;
 }
 
 const uint8_t *Microphone::getAudioBuffer()
 {
     const uint8_t *buff = nullptr;
-    xSemaphoreTake(buffLock, 1000);
-    buff = scaledBuffer;
-    xSemaphoreGive(buffLock);
+    if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
+        buff = m_audioBuffer;
+        xSemaphoreGive(m_buffLock);
+    }
     return buff;
 }
-void Microphone::setEnable(bool enable)
+void Microphone::stop()
 {
-    if (enable)
-        i2s_start((i2s_port_t)m_busNum);
-    else
-        i2s_stop((i2s_port_t)m_busNum);
+    if (m_channelHandle)
+        i2s_channel_disable(m_channelHandle);
+}
+void Microphone::resume()
+{
+    if (m_channelHandle)
+        i2s_channel_enable(m_channelHandle);
+}
+void Microphone::shutdown()
+{
+    stop();
+    m_bInited = false;
+    if (m_taskHandle) {
+        vTaskDelete(m_taskHandle);
+        m_taskHandle = nullptr;
+    }
+    if (m_cacheBuffer) {
+        free(m_cacheBuffer);
+        m_cacheBuffer = nullptr;
+    }
+    if (m_audioBuffer) {
+        free(m_audioBuffer);
+        m_audioBuffer = nullptr;
+    }
+    if (m_channelHandle) {
+        i2s_del_channel(m_channelHandle);
+        m_channelHandle = nullptr;
+    }
+    if (m_buffLock) {
+        vSemaphoreDelete(m_buffLock);
+        m_buffLock = nullptr;
+    }
 }

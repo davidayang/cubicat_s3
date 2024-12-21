@@ -1,0 +1,14 @@
+menu "Cubicat Configuration"
+	config DOUBLE_BUFFERING
+		bool "Enable Display Double Buffering"
+		default y
+		help
+			Enable display double buffering for higher preformance.
+
+    config REMOVE_GRAPHIC_ENGINE
+        bool "Remove Graphic Engine"
+        default n
+        help
+            Remove embedded graphic engine.
+        
+endmenu

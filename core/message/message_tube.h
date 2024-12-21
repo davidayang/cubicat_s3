@@ -1,6 +1,6 @@
 #ifndef _MESSAGE_TUBE_H_
 #define _MESSAGE_TUBE_H_
-#include "message/message.h"
+#include "message.h"
 #include <unordered_map>
 #include <vector>
 #include <set>

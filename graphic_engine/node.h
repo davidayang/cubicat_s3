@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "drawable/drawable.h"
 #include "component/component.h"
-#include "message/message_tube.h"
+#include "core/message/message_tube.h"
 #include "region.h"
 #include "core/memory_object.h"
 #include <string.h>

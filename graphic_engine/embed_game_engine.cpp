@@ -39,10 +39,10 @@ ScheduleManager* EmbedGameEngine::createScheduleManager() {
     m_pScheduleMgr = new ScheduleManager();
     return m_pScheduleMgr;
 }
-Renderer* EmbedGameEngine::createRenderer(uint32_t width, uint32_t height, DisplayInterface* backBuffer) {
+Renderer* EmbedGameEngine::createRenderer(DisplayInterface* backBuffer) {
     if (m_pRenderer)
         return m_pRenderer;
-    m_pRenderer = new Renderer(width, height, backBuffer);
+    m_pRenderer = new Renderer(backBuffer);
     return m_pRenderer;
 }
 void EmbedGameEngine::update() {

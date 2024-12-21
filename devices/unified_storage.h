@@ -9,10 +9,12 @@ class UnifiedStorage : public MemoryObject
 {
     friend class Cubicat;
 public:
+    UnifiedStorage(const UnifiedStorage&) = delete;
     ~UnifiedStorage();
 
-    void init();
-    void deinit();
+    // CAN NOT use MICPHONE and UNIFIED_STORAGE simultaneously
+    void mount();
+    void unmount();
     void setString(const char* key, const char* value);
     void setInt(const char* key, int value);
     void setFloat(const char* key, float value);
@@ -27,6 +29,8 @@ public:
     uint32_t getSDFreeSpace();
 private:
     UnifiedStorage();
+    bool isSPIFFSInit();
+    bool isSDInit();
     bool m_bSDInited = false;
     bool m_bFlashInited = false;
 };

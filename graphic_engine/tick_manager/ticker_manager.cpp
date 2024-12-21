@@ -1,4 +1,4 @@
-#include "tick_manager/ticke_manager.h"
+#include "ticke_manager.h"
 #include <algorithm>
 
 void TickManager::update(float deltaTime) {

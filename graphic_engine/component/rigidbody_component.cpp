@@ -1,10 +1,10 @@
 #include "rigidbody_component.h"
-#include "node.h"
+#include "../node.h"
 #include <algorithm>
 #include <cmath>
-#include "box2d-lite/World.h"
-#include "definitions.h"
-#include "math/vector3.h"
+#include "../box2d-lite/World.h"
+#include "../definitions.h"
+#include "../math/vector3.h"
 
 World* world = nullptr;
 OrientationListener oriListener;
