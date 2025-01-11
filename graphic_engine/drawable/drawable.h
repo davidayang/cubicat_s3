@@ -14,7 +14,7 @@ class Drawable : public RTTI, public MemoryObject
 public:
     DECLARE_RTTI_ROOT(Drawable);
     virtual ~Drawable() {}
-    virtual const uint16_t* getDrawData()  __attribute__((always_inline)) = 0;
+    virtual const void* getDrawData()  __attribute__((always_inline)) = 0;
     virtual void update(const Vector2& pos,const Vector2& scale, int16_t rotation);
     uint32_t getId() {return m_id;}
     const Vector2& getSize() {return m_size;}
@@ -24,15 +24,16 @@ public:
     void setMaskColor(uint16_t color) {m_maskColor = color;setRedraw(true);}
     uint16_t getMaskColor() {return m_maskColor;}
     bool hasMask() {return m_bHasMask;}
+    bool hasAlpha() {return m_bpp == 24;}
     const uint16_t* getPalette() {return m_palette;}
     void setPalette(const uint16_t* palette) {m_palette = palette;}
     // bit per pixel
     uint8_t getBPP() {return m_bpp;}
     const Vector2& getPivot() {return m_pivot;} 
     void setPivot(float x, float y) {m_pivot.x = x; m_pivot.y = y;}
-    bool readPixel(int16_t x, int16_t y, uint16_t* value);
+    bool readPixel(int16_t x, int16_t y, uint32_t* value);
     // read pixel without bounds checking
-    uint16_t readPixelUnsafe(uint16_t x, uint16_t y) __attribute__((always_inline));
+    uint32_t readPixelUnsafe(uint16_t x, uint16_t y) __attribute__((always_inline));
     void setRedraw(bool redraw) {m_bRedraw = redraw;}
     bool needRedraw() {return m_bRedraw;}
     Region getBoundingBox() {return m_boundingBox;}
@@ -68,15 +69,15 @@ inline void Drawable::update(const Vector2& pos,const Vector2& scale, int16_t ro
         updateBoundingBox();
     }
 }
-inline bool Drawable::readPixel(int16_t x, int16_t y, uint16_t* value) {
+inline bool Drawable::readPixel(int16_t x, int16_t y, uint32_t* value) {
     if (x < 0 || x >= m_size.x || y < 0 || y >= m_size.y)
         return false;
     *value = readPixelUnsafe(x, y);
     return true;
 }
 
-inline uint16_t Drawable::readPixelUnsafe(uint16_t x, uint16_t y) {
-    const uint16_t* data = getDrawData();
+inline uint32_t Drawable::readPixelUnsafe(uint16_t x, uint16_t y) {
+    const void* data = getDrawData();
     uint32_t offset = y * (uint16_t)m_size.x + x;
     uint8_t subIndex = 0;
     if (m_palette) {
@@ -84,12 +85,20 @@ inline uint16_t Drawable::readPixelUnsafe(uint16_t x, uint16_t y) {
         subIndex = offset % divider;
         offset /= divider;
     }
-    const uint16_t* address = data + offset;
-    uint16_t value = *(address);
-    if (m_palette) {
-        value = m_palette[value >> (15-subIndex) & 0x1];
+    if (m_bpp == 16) {
+        const uint16_t* address = (uint16_t*)data + offset;
+        uint32_t value = *(address);
+        if (m_palette) {
+            value = m_palette[value >> (15-subIndex) & 0x1];
+        }
+        return value;
+    } else if (m_bpp == 24) {
+        const uint32_t* address = (uint32_t*)data + offset;
+        uint32_t value = *(address);
+        return value;
+    } else {
+        return 0;
     }
-    return value;
 }
 typedef SharedPtr<Drawable>       DrawablePtr;
 

@@ -28,7 +28,7 @@ UnifiedStorage::~UnifiedStorage()
 }
 
 
-void UnifiedStorage::mount()
+void UnifiedStorage::init(bool sd)
 {
     // init nvs
     esp_err_t ret = nvs_flash_init();
@@ -52,7 +52,7 @@ void UnifiedStorage::mount()
         }
     }
     // init SD card
-    if (!m_bSDInited) {
+    if (!m_bSDInited && sd) {
         sdmmc_host_t host = SDMMC_HOST_DEFAULT();
         host.slot = SDMMC_HOST_SLOT_0;
         host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
@@ -89,14 +89,12 @@ void UnifiedStorage::mount()
     }
 }
 bool UnifiedStorage::isSPIFFSInit() {
-    LOGD("spiffs not initialized, call init() first.\n");
     return m_bFlashInited;
 }
 bool UnifiedStorage::isSDInit() {
-    LOGD("sd not initialized, call init() first. \n");
     return m_bSDInited;
 }
-void UnifiedStorage::unmount() {
+void UnifiedStorage::deinit() {
     auto ret = esp_vfs_fat_sdmmc_unmount();
     if (ret != ESP_OK) {
         LOGE("Failed to unmount FAT filesystem. Error: %s\n", esp_err_to_name(ret));
@@ -152,12 +150,12 @@ float UnifiedStorage::getFloat(const char* key) {
     if (!isSPIFFSInit()) {
         return 0.0f;
     }
-    const char* str = getString(key);
+    const char* str = getString(key).c_str();
     return atof(str);
 }
-const char* UnifiedStorage::getString(const char* key) {
+std::string UnifiedStorage::getString(const char* key) {
     if (!isSPIFFSInit()) {
-        return nullptr;
+        return "";
     }
     static char temp[4000];
     memset(temp, 0, 4000);

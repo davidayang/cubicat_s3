@@ -10,5 +10,11 @@ menu "Cubicat Configuration"
         default n
         help
             Remove embedded graphic engine.
+
+    config USE_LINEAR_FILTER
+        bool "Use Linear Filter"
+        default y
+        help
+            Render Texture Use Bilinear interpolation.
         
 endmenu

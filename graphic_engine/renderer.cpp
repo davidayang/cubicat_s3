@@ -57,16 +57,17 @@ bool VPClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* offse
 #define WritePixel(x, y, color) \
     backBuffer[y * m_viewPort.w + x] = color;
 
-#define ReadPixel(x, y, color) \
-    color = backBuffer[y * m_viewPort.w + x];
+#define ReadPixel(x, y) \
+    backBuffer[y * m_viewPort.w + x];
 
 void Renderer::draw(Drawable *drawable)
 {
-    const uint16_t *data = drawable->getDrawData();
+    const void *data = drawable->getDrawData();
     uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
     if (data && backBuffer)
     {
         auto hasMask = drawable->hasMask();
+        auto hasAlpha = drawable->hasAlpha();
         auto maskColor = drawable->getMaskColor();
         auto pos = drawable->getPos();
         int16_t angle = drawable->getRot();
@@ -89,48 +90,143 @@ void Renderer::draw(Drawable *drawable)
         uint16_t offsety = 0;
         if (!VPClip(m_dirtyWindow, bbox, &offsetx, &offsety))
             return;
-        if (hasRot || hasScale || drawable->getPalette()) {
-            uint16_t scaler = 1 << FP_SCALE;
-            int16_t scaleX = scale.x * scaler;
-            int16_t scaleY = scale.y * scaler;
+        if (hasRot || hasScale || drawable->getPalette() || hasAlpha) {
+            constexpr uint16_t SCALER = 1 << FP_SCALE;
+            // int16_t scaleX = scale.x * SCALER;
+            // int16_t scaleY = scale.y * SCALER;
             int16_t _offx = offsetx - centerX;
             int16_t _offy = offsety - centerY;
+            uint8_t ROffset = hasAlpha? 19 : 11;
+            uint8_t GOffset = hasAlpha? 13 : 5;
+            uint8_t BOffset = hasAlpha? 8 : 0;
             for (uint16_t j = 0; j < bbox.h; ++j)
             {
                 for (uint16_t i = 0; i < bbox.w; ++i)
                 {
                     // _x, _y为缩放旋转后图片的像素坐标,图片中心为原点
-                    int16_t _x = i + _offx;
-                    int16_t _y = j + _offy;
+#ifdef CONFIG_USE_LINEAR_FILTER
+                    float _x = i + _offx;
+                    float _y = j + _offy;
                     if (hasRot) {
-                        int16_t _xr = ((_x * cosa - _y * sina) >> FP_SCALE);
-                        int16_t _yr = ((_x * sina + _y * cosa) >> FP_SCALE);
+                        float _xr = ((int)_x * cosa - (int)_y * sina) / (float)SCALER;
+                        float _yr = ((int)_x * sina + (int)_y * cosa) / (float)SCALER;
                         _x = _xr;
                         _y = _yr;
                     }
+#else
+                    int16_t _x = i + _offx;
+                    int16_t _y = j + _offy;
+                    if (hasRot) {
+                        int16_t _xr = (_x * cosa - _y * sina) >> FP_SCALE;
+                        int16_t _yr = (_x * sina + _y * cosa) >> FP_SCALE;
+                        _x = _xr;
+                        _y = _yr;
+                    }
+#endif
                     if (hasScale) {
-                        _x = _x * scaler / scaleX;
-                        _y = _y * scaler / scaleY;
+                        _x = _x / scale.x;
+                        _y = _y / scale.y;
                     }
                     _x += originCenterX;
                     _y += originCenterY;
-                    uint16_t color;
+                    uint32_t color;
+#ifdef CONFIG_USE_LINEAR_FILTER
+                    // 获取四个邻近像素
+                    int16_t x0 = (int16_t)_x;
+                    int16_t y0 = (int16_t)_y;
+                    int16_t x1 = x0 + 1;
+                    int16_t y1 = y0;
+                    int16_t x2 = x0;
+                    int16_t y2 = y0 + 1;
+                    int16_t x3 = x0 + 1;
+                    int16_t y3 = y0 + 1;
+                    float dx = _x - x0;
+                    float dy = _y - y0;
+                    float factorA = (1 - dx) * (1 - dy);
+                    float factorB = dx * (1 - dy);
+                    float factorC = (1 - dx) * dy;
+                    float factorD = dx * dy;
+                    // if (hasRot) {
+                        uint32_t colorNear[4];
+                        int c = 0;
+                        if (drawable->readPixel(x0, y0, &colorNear[c]))
+                            c++;
+                        if (drawable->readPixel(x1, y1, &colorNear[c]))
+                            c++;
+                        if (drawable->readPixel(x2, y2, &colorNear[c]))
+                            c++;
+                        if (drawable->readPixel(x3, y3, &colorNear[c]))
+                            c++;
+                        if (c == 0) {
+                            continue;
+                        } else if (c == 4) {
+                            uint8_t r0 = (colorNear[0] >> ROffset) & 0x1F;
+                            uint8_t r1 = (colorNear[1] >> ROffset) & 0x1F;
+                            uint8_t r2 = (colorNear[2] >> ROffset) & 0x1F;
+                            uint8_t r3 = (colorNear[3] >> ROffset) & 0x1F;
+                            uint8_t g0 = (colorNear[0] >> GOffset) & 0x3F;
+                            uint8_t g1 = (colorNear[1] >> GOffset) & 0x3F;
+                            uint8_t g2 = (colorNear[2] >> GOffset) & 0x3F;
+                            uint8_t g3 = (colorNear[3] >> GOffset) & 0x3F;
+                            uint8_t b0 = (colorNear[0] >> BOffset) & 0x1F;
+                            uint8_t b1 = (colorNear[1] >> BOffset) & 0x1F;
+                            uint8_t b2 = (colorNear[2] >> BOffset) & 0x1F;
+                            uint8_t b3 = (colorNear[3] >> BOffset) & 0x1F;
+                            uint16_t rBlend = r0 * factorA + r1 * factorB + r2 * factorC + r3 * factorD;
+                            uint16_t gBlend = g0 * factorA + g1 * factorB + g2 * factorC + g3 * factorD;
+                            uint16_t bBlend = b0 * factorA + b1 * factorB + b2 * factorC + b3 * factorD;
+                            if (hasAlpha) {
+                                uint8_t a0 = colorNear[0] & 0xff;
+                                uint8_t a1 = colorNear[1] & 0xff;
+                                uint8_t a2 = colorNear[2] & 0xff;
+                                uint8_t a3 = colorNear[3] & 0xff;   
+                                uint8_t aBlend = a0 * factorA + a1 * factorB + a2 * factorC + a3 * factorD;
+                                color = (rBlend << ROffset) | (gBlend << GOffset) | (bBlend << BOffset) | aBlend;
+                            } else {
+                                color = (rBlend << 11) | (gBlend << 5) | bBlend;
+                            }
+                        } else {
+                            color = colorNear[0];
+                        }
+                    // } else {
+                    //     color = drawable->readPixelUnsafe(_x, _y);
+                    // }
+#else
                     if (hasRot) {
                         if (!drawable->readPixel(_x, _y, &color))
                             continue;
                     } else {
                         color = drawable->readPixelUnsafe(_x, _y);
                     }
+#endif
                     // 处理透明像素,直接跳过
                     if (hasMask && color == maskColor)
                         continue;
                     uint16_t screenX = bbox.x + i;
                     uint16_t screenY = bbox.y + j;
-                    WritePixel(screenX, screenY, color)
+                    // 处理alpha通道 RGBA: 5658
+                    if (hasAlpha) {
+                        uint16_t rgb = color >> 8;
+                        uint8_t alpha = color & 0xff;
+                        if (alpha == 0) {
+                            continue;
+                        }
+                        if (alpha == 255) {
+                            color = rgb;
+                        } else {
+                            auto bgColor = ReadPixel(screenX, screenY);
+                            // mix color with bg color use alpha
+                            uint8_t r = (((rgb >> 11) & 0x1F) * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8;
+                            uint8_t g = (((rgb >> 5) & 0x3F) * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8;
+                            uint8_t b = ((rgb & 0x1F) * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8;
+                            color = (r << 11) | (g << 5) | b;
+                        }
+                    }
+                    WritePixel(screenX, screenY, color);
                 }
             }
         } else {
-            pushImage(imgRegion.x, imgRegion.y, imgRegion.w, imgRegion.h, data, hasMask, maskColor);
+            pushImage(imgRegion.x, imgRegion.y, imgRegion.w, imgRegion.h, (const uint16_t *)data, hasMask, maskColor);
         }
         drawable->setRedraw(false);
     } else {

@@ -8,8 +8,9 @@ struct ImageData
     char col;
     char row;
     bool hasMask;
+    bool hasAlpha;
     uint16_t maskColor;
-    const uint16_t* data;
+    const void* data;
     const uint16_t* palette;
     uint8_t bpp;
 };

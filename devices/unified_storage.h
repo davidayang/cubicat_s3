@@ -4,6 +4,7 @@
 #include "core/memory_object.h"
 #include "core/macros.h"
 #include <cstdio>
+#include <string>
 
 class UnifiedStorage : public MemoryObject
 {
@@ -12,15 +13,15 @@ public:
     UnifiedStorage(const UnifiedStorage&) = delete;
     ~UnifiedStorage();
 
-    // CAN NOT use MICPHONE and UNIFIED_STORAGE simultaneously
-    void mount();
-    void unmount();
+    // CAN NOT use MICPHONE and SD simultaneously
+    void init(bool sd = false);
+    void deinit();
     void setString(const char* key, const char* value);
     void setInt(const char* key, int value);
     void setFloat(const char* key, float value);
     int getInt(const char* key);
     float getFloat(const char* key);
-    const char* getString(const char* key);
+    std::string getString(const char* key);
     void saveFileSD(const char* filename, const char* content, int len, bool binary = true, bool append = false);
     FILE* openFileSD(const char* filename, bool binary = true);
     void saveFileFlash(const char* filename, const char* content, int len, bool binary = true, bool append = false);

@@ -1,42 +1,74 @@
 #include "wifi.h"
 #include <stdlib.h>
-#include "esp_wifi.h"
 #include <string.h>
 #include "nvs_flash.h"
+#include "esp_sntp.h"
+#include "esp_smartconfig.h"
 
 #define MAX_RETRY 5
 int g_retry = 0;
-bool Wifi::m_bConnected = false;
-std::string Wifi::m_ip = "";
-static EventGroupHandle_t g_wifiEventGroup;
+Wifi::ConnectState Wifi::m_sState = Wifi::CONNECT_FAIL;
+std::string Wifi::m_sIP = "";
+QueueHandle_t Wifi::m_sQueueHandle = nullptr;
+bool Wifi::m_sbUseSmartConfig = false;
+ConnectCallback Wifi::m_sCallbackFunc = nullptr;
+std::string Wifi::m_sSSID = "";
+std::string Wifi::m_sPASSWD = "";
 
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
+struct ConnectResult {
+    bool success;
+    char ip[16];
+};
+
+void initialize_sntp() {
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setservername(0, "pool.ntp.org");
+    esp_sntp_init();
+}
 
 Wifi::Wifi() {
 }
 Wifi::~Wifi() {
 }
-void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+void Wifi::wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_connect();
+        if (m_sbUseSmartConfig) {
+            // start smartconfig
+            ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH));
+            smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
+            cfg.enable_log = true;
+            ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
+        } else {
+            esp_wifi_connect();
+        }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         if (g_retry < MAX_RETRY) {
             printf("Retry connecting to the wifi AP\n");
             g_retry++;
-            vTaskDelay(500 / portTICK_PERIOD_MS);
+            vTaskDelay(300 / portTICK_PERIOD_MS);
             esp_wifi_connect(); // 重新连接
         } else {
             wifi_event_sta_disconnected_t* disconnection = (wifi_event_sta_disconnected_t*)event_data;
             printf("Disconnected from SSID: %s, reason: %d\n", disconnection->ssid, disconnection->reason);
-            xEventGroupSetBits(g_wifiEventGroup, WIFI_FAIL_BIT);
+            static ConnectResult result;
+            result.success = false;
+            xQueueSend(m_sQueueHandle, &result, 0);
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        char ipstr[16] = {0};
-        sprintf(ipstr, IPSTR, IP2STR(&event->ip_info.ip));
-        Wifi::onConnected(ipstr);
-        xEventGroupSetBits(g_wifiEventGroup, WIFI_CONNECTED_BIT);
+        static ConnectResult result;
+        result.success = true;
+        sprintf(result.ip, IPSTR, IP2STR(&event->ip_info.ip));
+        xQueueSend(m_sQueueHandle, &result, 0);
+    } else if (event_base == SC_EVENT && event_id == SC_EVENT_GOT_SSID_PSWD) {
+        smartconfig_event_got_ssid_pswd_t *evt = (smartconfig_event_got_ssid_pswd_t *)event_data;
+        wifi_config_t wifi_config;
+        char ssid[33] = { 0 };
+        char password[65] = { 0 };
+        memcpy(ssid, evt->ssid, sizeof(wifi_config.sta.ssid));
+        memcpy(password, evt->password, sizeof(wifi_config.sta.password));
+        disconnect();
+        connectAsync(ssid, password, m_sCallbackFunc);
     }
 }
 void Wifi::init() {
@@ -54,32 +86,128 @@ void Wifi::init() {
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     esp_wifi_set_mode(WIFI_MODE_STA);
     // 注册事件处理
-    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, NULL);
-    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &wifi_event_handler, NULL);
-    g_wifiEventGroup = xEventGroupCreate();
+    esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, wifiEventHandler, NULL);
+    esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, wifiEventHandler, NULL);
+    esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, wifiEventHandler, NULL);
+    m_sQueueHandle = xQueueCreate(1, sizeof(ConnectResult));
 }
-bool Wifi::connect(const char* ssid, const char* password) {
-    if (m_bConnected)
+void Wifi::smartConnect(ConnectCallback callback) {
+    if (isConnected())
+        return;
+    if (isConnecting())
+        return;
+    setState(CONNECTING);
+    m_sbUseSmartConfig = true;
+    m_sCallbackFunc = callback;
+    ESP_ERROR_CHECK(esp_wifi_start());
+}
+bool Wifi::connect(std::string ssid, std::string password) {
+    if (isConnected())
         return true;
+    if (isConnected())
+        return false;
+    // use last saved ssid and password
+    if (ssid.empty()) {
+        readStoredSSIDAndPassword();
+    } else {
+        m_sSSID = ssid;
+        m_sPASSWD = password;
+    }
+    if (m_sSSID.empty()) {
+        return false;
+    }
+    m_sbUseSmartConfig = false;
     g_retry = 0;
-    // 配置 Wi-Fi 连接
+    // config wifi ssid and password
     wifi_config_t wifi_config;
     memset(&wifi_config, 0, sizeof(wifi_config_t));
-    strcpy((char*)wifi_config.sta.ssid, ssid);
-    strcpy((char*)wifi_config.sta.password, password);
-    wifi_config.sta.threshold.authmode = strlen(password)? WIFI_AUTH_WPA_WPA2_PSK : WIFI_AUTH_OPEN;
+    strcpy((char*)wifi_config.sta.ssid, m_sSSID.c_str());
+    if (!m_sPASSWD.empty())
+        strcpy((char*)wifi_config.sta.password, m_sPASSWD.c_str());
+    wifi_config.sta.threshold.authmode = m_sPASSWD.length() ? WIFI_AUTH_WPA_WPA2_PSK : WIFI_AUTH_OPEN;
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     // 等待连接成功和获取 IP 地址
-    EventBits_t bits = xEventGroupWaitBits(g_wifiEventGroup, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-                                            pdTRUE, pdFALSE, portMAX_DELAY);
-    if (bits & WIFI_CONNECTED_BIT) {
-        printf("Wi-Fi connected. got IP address. %s\n", m_ip.c_str());
-        return true;
+    ConnectResult result;
+    if (xQueueReceive(m_sQueueHandle, &result, portMAX_DELAY) == pdTRUE) {
+        onConnected(result.success, result.ip);
     }
-    if (bits & WIFI_FAIL_BIT) {
-        printf("Failed to connect to the AP\n");
-        return false;
+    return isConnected();
+}
+void Wifi::connectAsync(std::string ssid, std::string password, ConnectCallback callback) {
+    if (isConnecting())
+        return;
+    if (isConnected()) {
+        callback(true, m_sIP.c_str());
+        return;
     }
-    return false;
+    if (ssid.empty()) {
+        readStoredSSIDAndPassword();
+    } else {
+        m_sSSID = ssid;
+        m_sPASSWD = password;
+    }
+    if (m_sSSID.empty()) {
+        callback(false, "");
+        return;
+    }
+    setState(CONNECTING);
+    m_sCallbackFunc = callback;
+    m_sbUseSmartConfig = false;
+    g_retry = 0;
+    // config wifi ssid and password
+    wifi_config_t wifi_config;
+    memset(&wifi_config, 0, sizeof(wifi_config_t));
+    strcpy((char*)wifi_config.sta.ssid, m_sSSID.c_str());
+    if (!m_sPASSWD.empty())
+        strcpy((char*)wifi_config.sta.password, m_sPASSWD.c_str());
+    wifi_config.sta.threshold.authmode = m_sPASSWD.length() ? WIFI_AUTH_WPA_WPA2_PSK : WIFI_AUTH_OPEN;
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+}
+void Wifi::onConnected(bool success, const char* ip) {
+    setState(success ? CONNECT_SUCCESS : CONNECT_FAIL);
+    if (success) {
+        // save ssid and password
+        nvs_handle_t nvs_handle;
+        esp_err_t err = nvs_open("wifi_config", NVS_READWRITE, &nvs_handle);
+        nvs_set_str(nvs_handle, "wifi_ssid", m_sSSID.c_str());
+        nvs_set_str(nvs_handle, "wifi_password", m_sPASSWD.c_str());
+        m_sIP = ip;
+        initialize_sntp();
+    }
+    if (m_sCallbackFunc) {
+        m_sCallbackFunc(success, m_sIP.c_str());
+        m_sCallbackFunc = nullptr;
+    }
+}
+void Wifi::disconnect() {
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    if (isConnected())
+        esp_sntp_stop();
+    setState(CONNECT_FAIL);
+    m_sbUseSmartConfig = false;
+    m_sCallbackFunc = nullptr;
+}
+
+void Wifi::eventLoop() {
+    if (isConnecting()) {
+        ConnectResult result;
+        if (xQueueReceive(m_sQueueHandle, &result, 0) == pdTRUE) {
+            onConnected(result.success, result.ip);
+        }
+    }
+}
+void Wifi::readStoredSSIDAndPassword() {
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("wifi_config", NVS_READONLY, &nvs_handle);
+    char ssidbuf[32] = {0};
+    char passwordbuf[64] = {0};
+    size_t ssid_len, password_len;
+    nvs_get_str(nvs_handle, "wifi_ssid", ssidbuf, &ssid_len);
+    nvs_get_str(nvs_handle, "wifi_password", passwordbuf, &password_len);
+    if (ssid_len)
+        m_sSSID = ssidbuf;
+    if (password_len)
+        m_sPASSWD = passwordbuf;
 }

@@ -11,15 +11,12 @@
 #include <iomanip>
 #include <ctime>
 
-#define YY:MM:DD "%y:%m:%d %H:%M:%S"
-#define YY_MM_DD "%y-%m-%d"
-
 #define ExeTime(code)                  \
     {                                  \
         int64_t startTime = micros();  \
         code;                          \
         int64_t endTime = micros();    \
-        printf("func:%s line[%d]: %ld ms %ld us\n", __FUNCTION__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
+        printf("func:%s line[%d]: %ld ms (%ld us)\n", __FUNCTION__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
     }
 
 const int headerSize = 44;
@@ -61,15 +58,20 @@ inline void memoryReport() {
     printf("Free spiram heap: %d bytes\n", size);
 }
 
-inline time_t timeStringToTimestamp(const std::string& timeString, const std::string& format) {
+inline time_t timeStringToTimestamp(const std::string& timeString) {
     std::tm tm = {};
     std::istringstream ss(timeString);
-    ss >> std::get_time(&tm, format.c_str());
+    ss >> std::get_time(&tm, "%y:%m:%d %H:%M:%S");
     if (ss.fail()) {
         return 0;
     }
     // 将 tm 转换为 time_t（Unix 时间戳）
     return std::mktime(&tm);
 }
-
+inline std::string timestampToTimeString(time_t timestamp) {
+    std::tm tm = *std::localtime(&timestamp);
+    std::ostringstream ss;
+    ss << std::put_time(&tm, "%y:%m:%d %H:%M:%S");
+    return ss.str();
+}
 #endif

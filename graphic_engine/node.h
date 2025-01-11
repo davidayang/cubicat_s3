@@ -121,6 +121,8 @@ inline void Node::setScale(float x, float y) {
     m_bDirty = true;
 }
 inline void Node::setRotation(int16_t angle) {
+    if (angle == m_LocalRot)
+        return;
     m_LocalRot = angle;
     m_bDirty = true;
 }
