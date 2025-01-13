@@ -3,6 +3,7 @@
 #include "core/singleton.h"
 #include "devices/devices.h"
 #include "graphic_engine/embed_game_engine.h"
+#include "utils/logger.h"
 
 class RendererDisplay : public Display , public DisplayInterface, public DrawStageListener {
     friend class Cubicat;

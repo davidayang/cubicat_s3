@@ -33,7 +33,7 @@ void RendererDisplay::onDrawFinish(const Region& dirtyRegion) {
 
 void Cubicat::begin()
 {
-    // storage.init();
+    storage.init();
     lcd.init(TFT_WIDTH, TFT_HEIGHT, LCD_SDA, LCD_SCL, LCD_RST, LCD_DC, -1, LCD_TP_SDA, LCD_TP_SCL, LCD_TP_RST, LCD_TP_INT);
     speaker.init(SPKER_BCK, SPKER_WS, SPKER_DIN, SPKER_EN);
     mic.init(MIC_CLK, MIC_DATA);

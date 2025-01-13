@@ -9,7 +9,7 @@
 
 #define FLASHPATH "/spiffs"
 #define SDPATH "/sdcard"
-#define NVSNS "storage"
+#define NVSNS "nvs"
 #define MMC_HOST_SLOT SDMMC_HOST_SLOT_0
 
 #define SD_SCL      GPIO_NUM_2
@@ -197,7 +197,7 @@ FILE* UnifiedStorage::openFileSD(const char* filename, bool binary) {
 }
 void UnifiedStorage::saveFileFlash(const char* filename, const char* content, int len, bool binary, bool append) {
     if (!m_bFlashInited) {
-        printf("flash not inited yet\n");
+        LOGI("save failed flash not inited yet\n");
         return;
     }
     char path[PATH_MAX] = {0};
@@ -206,7 +206,7 @@ void UnifiedStorage::saveFileFlash(const char* filename, const char* content, in
 }
 FILE* UnifiedStorage::openFileFlash(const char* filename, bool binary) {
     if (!m_bFlashInited) {
-        printf("flash not inited yet\n");
+        LOGI("open failed flash not inited yet\n");
         return NULL;
     }
     char path[PATH_MAX] = {0};
