@@ -10,7 +10,7 @@ public:
      uint16_t maskColor = 0, const uint16_t* palette = nullptr, uint8_t bpp = 16) {
         return SharedPtr<SpriteSheet>(NEW SpriteSheet(width, height, data, col, row, hasMask, maskColor, palette, bpp));
      }
-    const void* getDrawData() override;
+    const void* getTextureData() override;
     void setFrame(int nth);
     // Todo:设置使用外部的帧数据. 针对于一个动画使用多张序列图片的情况，后期可能会修改使用更统一的机制
     void setFrameData(const void* data, uint16_t width, uint16_t height, uint16_t maskColor);
@@ -26,7 +26,7 @@ private:
     uint16_t            m_originMaskColor;
 };
 typedef SharedPtr<SpriteSheet>       SpriteSheetPtr;
-inline const void* SpriteSheet::getDrawData() {
+inline const void* SpriteSheet::getTextureData() {
     return m_frameDataPtr;
 }
 #endif

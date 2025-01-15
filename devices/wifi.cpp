@@ -36,7 +36,6 @@ void Wifi::wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t even
             // start smartconfig
             ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH));
             smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
-            cfg.enable_log = true;
             ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
         } else {
             esp_wifi_connect();
@@ -170,11 +169,13 @@ void Wifi::onConnected(bool success, const char* ip) {
     if (success) {
         // save ssid and password
         nvs_handle_t nvs_handle;
-        esp_err_t err = nvs_open("wifi_config", NVS_READWRITE, &nvs_handle);
+        ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READWRITE, &nvs_handle));
         nvs_set_str(nvs_handle, "wifi_ssid", m_sSSID.c_str());
         nvs_set_str(nvs_handle, "wifi_password", m_sPASSWD.c_str());
         m_sIP = ip;
         initialize_sntp();
+    } else {
+        disconnect();
     }
     if (m_sCallbackFunc) {
         m_sCallbackFunc(success, m_sIP.c_str());

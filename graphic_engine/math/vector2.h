@@ -104,11 +104,11 @@ inline float Vector2::normalize() {
     return l;
 }
 inline void Vector2::rotate(float angle) {
-    int scaler = 1 << FP_SCALE;
+    int scaler = 1 << FP_SCALE_POW;
     int16_t cosa = cos(angle * ANGLE_2_RAD) * scaler;
     int16_t sina = sin(angle * ANGLE_2_RAD) * scaler;
-    float _x = ((int16_t)x * cosa - (int16_t)y * sina) >> FP_SCALE;
-    float _y = ((int16_t)x * sina + (int16_t)y * cosa) >> FP_SCALE;
+    float _x = ((int16_t)x * cosa - (int16_t)y * sina) >> FP_SCALE_POW;
+    float _y = ((int16_t)x * sina + (int16_t)y * cosa) >> FP_SCALE_POW;
     x = _x;
     y = _y;
 }

@@ -15,7 +15,7 @@ public:
         return SharedPtr<BMFont>(NEW BMFont(size, text, color));
     }
     ~BMFont();
-    const uint16_t* getDrawData() { return m_pData; }
+    const void* getTextureData() override { return m_pData; }
     void setColor(uint16_t color);
 private:
     BMFont(const Vector2& size,const char* text, uint16_t color = 0x0);

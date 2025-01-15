@@ -5,20 +5,20 @@ class Sprite : public Drawable
 {
 public:
     DECLARE_RTTI_SUB(Sprite, Drawable);
-    static SharedPtr<Sprite> create(uint16_t width, uint16_t height, uint16_t* data, bool hasMask, uint16_t maskColor = 0,
+    static SharedPtr<Sprite> create(uint16_t width, uint16_t height, const void* data, bool hasMask, uint16_t maskColor = 0,
     const uint16_t *palette = nullptr, uint8_t bpp = 16) {
         return SharedPtr<Sprite>(NEW Sprite(width, height, data, hasMask, maskColor, palette, bpp));
     }
     ~Sprite();
 
-    const uint16_t* getDrawData();
+    const void* getTextureData() override;
 private:
-    Sprite(uint16_t width, uint16_t height, uint16_t* data, bool hasMask, uint16_t maskColor = 0, 
+    Sprite(uint16_t width, uint16_t height, const void* texData, bool hasMask, uint16_t maskColor = 0, 
     const uint16_t *palette = nullptr, uint8_t bpp = 16);
-    uint16_t*     m_Data;
+    const void*     m_Data;
 };
 typedef SharedPtr<Sprite>       SpritePtr;
-inline const uint16_t* Sprite::getDrawData() {
+inline const void* Sprite::getTextureData() {
     return m_Data;
 }
 #endif

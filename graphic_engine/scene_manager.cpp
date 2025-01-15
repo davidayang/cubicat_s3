@@ -26,12 +26,21 @@ NodePtr SceneManager::createNode(const char* name) {
 NodePtr SceneManager::createSpriteNode(const ImageData& img,const Vector2& pivot,const char* name) {
     DrawablePtr sprite;
     if (img.col > 1 || img.row > 1)
-        sprite = SpriteSheet::create(img.width, img.height, (uint16_t*)img.data, img.col, img.row, img.hasMask, img.maskColor, img.palette, img.bpp);
+        sprite = SpriteSheet::create(img.width, img.height, img.data, img.col, img.row, img.hasMask, img.maskColor, img.palette, img.bpp);
     else 
-        sprite = Sprite::create(img.width, img.height, (uint16_t*)img.data, img.hasMask, img.maskColor, img.palette, img.bpp);
+        sprite = Sprite::create(img.width, img.height, img.data, img.hasMask, img.maskColor, img.palette, img.bpp);
     sprite->setPivot(pivot.x, pivot.y);
     auto node = createNode(name);
     node->attachDrawable(sprite);
+    return node;
+}
+NodePtr SceneManager::createPloygon(const ImageData& img,const Vector2& pivot,const char* name) {
+    auto texture = Texture::create(img.width, img.height, img.data, img.col, img.row, img.palette, img.bpp, img.hasAlpha);
+    auto polygon = Polygon::create(texture->getFrameWidth(), texture->getFrameHeight(), (uint16_t*)img.data, img.hasMask, img.maskColor);
+    polygon->setPivot(pivot.x, pivot.y);
+    polygon->setTexture(texture);
+    auto node = createNode(name);
+    node->attachDrawable(polygon);
     return node;
 }
 NodePtr SceneManager::getObjectById(unsigned int id) {

@@ -35,8 +35,8 @@ void SheetAnimationComponent::update(Node* target, float deltaTime) {
         if (index < m_currentMountingPoint.len) {
             int offset = index * 3;
             auto& pivot = m_pSheet->getPivot();
-            int xoffset = m_pSheet->getSize().x * pivot.x;
-            int yoffset = m_pSheet->getSize().y * pivot.y;
+            int xoffset = m_pSheet->getTextureSize().x * pivot.x;
+            int yoffset = m_pSheet->getTextureSize().y * pivot.y;
             Vector3h mpt(m_currentMountingPoint.data[offset] - xoffset,
              m_currentMountingPoint.data[offset+1] - yoffset, m_currentMountingPoint.data[offset+2]);
             target->broadcastMessage(Msg_MountingPointPos, &mpt);

@@ -12,6 +12,7 @@
 #include "region.h"
 #include <vector>
 #include <unordered_map>
+#include "drawable/polygon.h"
 
 struct RenderBuffer {
     uint16_t* data;
@@ -44,6 +45,7 @@ public:
 private:
     void calculateDirtyWindow(const std::vector<DrawablePtr>& drawables);
     void draw(Drawable *drawable);
+    void drawPolygon(Polygon *polygon);
     void pushImage(int16_t x, int16_t y, uint16_t w, uint16_t h, const uint16_t *data, bool hasMask, uint16_t maskColor);
     void clear();
     bool                                    m_bManagedBackBuffer = true;

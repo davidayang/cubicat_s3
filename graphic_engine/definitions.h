@@ -1,7 +1,8 @@
 #ifndef _DEFINITIONS_H_
 #define _DEFINITIONS_H_
 
-#define FP_SCALE 10
+#define FP_SCALE_POW  10
+#define FP_SCALE      (1 << FP_SCALE_POW)
 #define ANGLE_2_RAD   0.0174533
 #define RAD_2_ANGLE   57.295780
 #ifndef PI

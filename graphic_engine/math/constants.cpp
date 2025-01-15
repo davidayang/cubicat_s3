@@ -8,7 +8,7 @@ bool initSinCos = false;
 void initSinCosValue() {
     if (!initSinCos) {
         initSinCos = true;
-        uint16_t scaler = 1 << FP_SCALE;
+        uint16_t scaler = 1 << FP_SCALE_POW;
         for (uint16_t i=0;i<360;++i) {
             sinArray[i] = (int16_t)(sinf(i * ANGLE_2_RAD) * scaler);
             cosArray[i] = (int16_t)(cosf(i * ANGLE_2_RAD) * scaler);

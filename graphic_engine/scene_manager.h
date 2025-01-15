@@ -14,6 +14,7 @@ public:
     WidgetPtr createUICanvas(uint16_t width, uint16_t height);
     NodePtr createSpriteNode(const ImageData& imgData,const Vector2& pivot = Vector2(0.5, 0.5),const char* name="");
     NodePtr createNode(const char* name = "");
+    NodePtr createPloygon(const ImageData& imgData,const Vector2& pivot = Vector2(0.5, 0.5), const char* name = "");
     NodePtr getObjectById(unsigned int id);
     WidgetPtr getUICanvas() {return m_pUICanvas;}
     void deleteObject(unsigned int id);

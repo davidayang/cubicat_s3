@@ -4,7 +4,7 @@
 
 #define LOGI(x, ...) \
 ESP_LOGI("", x, ##__VA_ARGS__)
-#define LOGD(x, ...) \
+#define LOGW(x, ...) \
 ESP_LOGD("", x, ##__VA_ARGS__)
 #define LOGE(x, ...) \
 ESP_LOGE("", x, ##__VA_ARGS__)

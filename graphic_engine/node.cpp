@@ -71,7 +71,7 @@ void Node::setZ(int z) {
 Region Node::getAABB() {
     Region aabb;
     for (auto drawable : m_vDrawables) {
-        const Vector2& size = drawable->getSize();
+        const Vector2& size = drawable->getTextureSize();
         const Vector2& p = drawable->getPivot();
         const Vector2& scale = getWorldScale();
         float x = -size.x * p.x * scale.x;

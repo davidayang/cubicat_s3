@@ -13,7 +13,7 @@ public:
     }
     ~Rectangle();
 
-    const uint16_t* getDrawData() { return m_pData; }
+    const void* getTextureData() override { return m_pData; }
     void setColor(uint16_t color);
 private:
     // lineWidth 只有在fill为tfalse,即为轮廓模式时才有效
