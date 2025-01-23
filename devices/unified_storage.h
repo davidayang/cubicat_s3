@@ -16,9 +16,9 @@ public:
     // CAN NOT use MICPHONE and SD simultaneously
     void init(bool sd = false);
     void deinit();
-    void setString(const char* key, const char* value);
-    void setInt(const char* key, int value);
-    void setFloat(const char* key, float value);
+    bool setString(const char* key, const char* value);
+    bool setInt(const char* key, int value);
+    bool setFloat(const char* key, float value);
     int getInt(const char* key);
     float getFloat(const char* key);
     std::string getString(const char* key);

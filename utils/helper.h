@@ -11,13 +11,15 @@
 #include <iomanip>
 #include <ctime>
 
-#define ExeTime(code)                  \
+#define BENCHMARK(code)                \
     {                                  \
         int64_t startTime = micros();  \
         code;                          \
         int64_t endTime = micros();    \
-        printf("func:%s line[%d]: %ld ms (%ld us)\n", __FUNCTION__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
+        printf("file:%s line[%d]: %ld ms (%ld us)\n", __FILE__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
     }
+
+#define MEMORY_REPORT memoryReport(__FILE__, __LINE__);
 
 const int headerSize = 44;
 extern void wavHeader(uint8_t* header, int wavSize);
@@ -49,13 +51,14 @@ inline uint32_t millis() {
 inline int64_t micros() {
     return esp_timer_get_time();
 }
-inline void memoryReport() {
+inline void memoryReport(const char* file, int line) {
+    printf("<=====Memory report in %s:%d ======>\n", file, line);
     auto size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     printf("Free internal heap: %d bytes\n", size);
     size = heap_caps_get_free_size(MALLOC_CAP_DMA);
     printf("Free dma heap: %d bytes\n", size);
     size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    printf("Free spiram heap: %d bytes\n", size);
+    printf("Free spiram heap: %d bytes\n\n", size);
 }
 
 inline time_t timeStringToTimestamp(const std::string& timeString) {
@@ -74,4 +77,19 @@ inline std::string timestampToTimeString(time_t timestamp) {
     ss << std::put_time(&tm, "%y:%m:%d %H:%M:%S");
     return ss.str();
 }
+
+inline void* psram_prefered_malloc(size_t size) {
+    void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+    if (ptr)
+        return ptr; 
+    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
+}
+
+inline void* dma_prefered_malloc(size_t size) {
+    void* ptr = heap_caps_malloc(size, MALLOC_CAP_DMA);
+    if (ptr)
+        return ptr; 
+    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
+}
+
 #endif

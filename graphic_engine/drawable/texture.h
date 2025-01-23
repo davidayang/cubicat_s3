@@ -3,6 +3,8 @@
 #include "core/memory_object.h"
 #include "core/shared_pointer.h"
 
+namespace cubicat {
+
 class Texture : public MemoryObject
 {
 public:
@@ -10,6 +12,8 @@ public:
     const uint16_t* palette = nullptr, uint8_t bpp = 16, bool hasAlpha = false) {
         return SharedPtr<Texture>(new Texture(width, height, data, col, row, palette, bpp, hasAlpha));
     }
+    Texture(uint16_t width, uint16_t height, const void* data, uint16_t col, uint16_t row,const uint16_t* palette, 
+    uint8_t bpp, bool hasAlpha);
     ~Texture();
     uint16_t getWidth() const { return m_width; }
     uint16_t getHeight() const { return m_height; }
@@ -25,8 +29,6 @@ public:
     bool readPixel(int32_t x, int32_t y, uint32_t* value);
     uint32_t readPixelUnsafe(uint32_t x, uint32_t y);
 private:
-    Texture(uint16_t width, uint16_t height, const void* data, uint16_t col, uint16_t row,const uint16_t* palette, 
-    uint8_t bpp, bool hasAlpha);
     const void*     m_pData;
     const void*     m_pFramePtr;
     uint16_t        m_col;
@@ -66,10 +68,11 @@ inline uint32_t Texture::readPixelUnsafe(uint32_t x, uint32_t y) {
         return value;
     } else if (m_bpp == 24) {
         const uint32_t* address = (uint32_t*)m_pFramePtr + offset;
-        uint32_t value = *(address);
-        return value;
+        return *address;
     } else {
         return 0;
     }
 }
+
+} // namespace cubicat
 #endif

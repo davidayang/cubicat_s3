@@ -13,7 +13,6 @@ Node::Node(const char* name)
 }
 
 Node::~Node() {
-    
 }
 void Node::updateFromParent() {
     if (!m_pParent)
@@ -29,17 +28,17 @@ void Node::updateFromParent() {
         m_WorldPos += wPosParent;
         m_WorldScale = m_LocalScale * wScale;
         m_WorldRot = m_LocalRot + wRot;
-        for (auto drawable : m_vDrawables) {
+        for (auto& drawable : m_vDrawables) {
             drawable->setRedraw(true);
         }
     }
 }
 void Node::update(float deltaTime) {
     updateFromParent();
-    for (auto comp : m_vComponents) {
+    for (auto& comp : m_vComponents) {
         comp->update(this, deltaTime);
     }
-    for (auto child : m_vChildren) {
+    for (auto& child : m_vChildren) {
         child->update(deltaTime);
     }
     m_bDirty = false;
@@ -51,6 +50,8 @@ void Node::findDrawables(std::vector<DrawablePtr>& outList) {
     if (!isVisible())
         return;
     for (auto d : m_vDrawables) {
+        if (!d->isVisible())
+            continue;
         d->update(m_WorldPos, m_WorldScale, m_WorldRot);
         outList.push_back(d);
     }
@@ -97,4 +98,16 @@ Region Node::getAABB() {
     aabb.w = (uint16_t)(maxx - minx);
     aabb.h = (uint16_t)(maxy - miny);
     return aabb;
+}
+const std::vector<DrawablePtr>& Node::getDrawables() const {
+    return m_vDrawables;
+}
+DrawablePtr Node::getDrawable(uint32_t index) {
+    if (index >= m_vDrawables.size())
+        return SharedPtr<Drawable>(nullptr);
+    return m_vDrawables[index];
+}
+
+void Node::clearDrawables() {
+    m_vDrawables.clear();
 }

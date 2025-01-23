@@ -42,10 +42,11 @@ public:
     void setZ(int z);
     int getZ() {return m_Z;}
     Node* getParent() {return m_pParent;}
-    void update(float deltaTime);
+    virtual void update(float deltaTime);
     void attachDrawable(DrawablePtr drawable);
-    const std::vector<DrawablePtr>& getDrawables() {return m_vDrawables;}
-    void clearDrawables() {m_vDrawables.clear();}
+    const std::vector<DrawablePtr>& getDrawables() const;
+    DrawablePtr getDrawable(uint32_t index);
+    void clearDrawables();
     void findDrawables(std::vector<DrawablePtr>& outList);
     const std::vector<NodePtr> getChildren();
     void setVisible(bool visible) {m_bVisible = visible;}

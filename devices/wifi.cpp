@@ -4,6 +4,7 @@
 #include "nvs_flash.h"
 #include "esp_sntp.h"
 #include "esp_smartconfig.h"
+#include "lwip/snmp.h"
 
 #define MAX_RETRY 5
 int g_retry = 0;
@@ -19,8 +20,8 @@ struct ConnectResult {
     bool success;
     char ip[16];
 };
-
 void initialize_sntp() {
+    esp_sntp_stop();
     esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
     esp_sntp_setservername(0, "pool.ntp.org");
     esp_sntp_init();
@@ -184,11 +185,8 @@ void Wifi::onConnected(bool success, const char* ip) {
 }
 void Wifi::disconnect() {
     ESP_ERROR_CHECK(esp_wifi_stop());
-    if (isConnected())
-        esp_sntp_stop();
     setState(CONNECT_FAIL);
     m_sbUseSmartConfig = false;
-    m_sCallbackFunc = nullptr;
 }
 
 void Wifi::eventLoop() {
@@ -201,10 +199,11 @@ void Wifi::eventLoop() {
 }
 void Wifi::readStoredSSIDAndPassword() {
     nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open("wifi_config", NVS_READONLY, &nvs_handle);
+    ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READONLY, &nvs_handle));
     char ssidbuf[32] = {0};
     char passwordbuf[64] = {0};
-    size_t ssid_len, password_len;
+    size_t ssid_len = sizeof(ssidbuf);
+    size_t password_len = sizeof(passwordbuf);
     nvs_get_str(nvs_handle, "wifi_ssid", ssidbuf, &ssid_len);
     nvs_get_str(nvs_handle, "wifi_password", passwordbuf, &password_len);
     if (ssid_len)

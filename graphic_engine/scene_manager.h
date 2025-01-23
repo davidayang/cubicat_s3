@@ -21,6 +21,7 @@ public:
     void update(float deltaTime);
     void setCameraPos(const Vector2& pos);
     const std::vector<DrawablePtr>& getDrawables() {return m_drawables;}
+    NodePtr getRoot() {return m_pRoot;}
 private:
     WidgetPtr                                       m_pUICanvas;
     NodePtr                                         m_pRoot;

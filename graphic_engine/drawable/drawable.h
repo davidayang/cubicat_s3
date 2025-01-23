@@ -14,6 +14,11 @@ using namespace cubicat;
 class Drawable : public RTTI, public MemoryObject
 {
 public:
+    enum BlendMode {
+        Normal,
+        Additive,
+        Multiply
+    };
     DECLARE_RTTI_ROOT(Drawable);
     virtual ~Drawable() {}
     virtual const void* getTextureData()  __attribute__((always_inline)) = 0;
@@ -36,10 +41,14 @@ public:
     bool readPixel(int32_t x, int32_t y, uint32_t* value) __attribute__((always_inline));
     // read pixel without border checking
     uint32_t readPixelUnsafe(uint32_t x, uint32_t y) __attribute__((always_inline));
-    void setRedraw(bool redraw) {m_bRedraw = redraw;}
+    inline void setRedraw(bool redraw) {m_bRedraw = redraw;}
     bool needRedraw() {return m_bRedraw;}
     // bounding box in world space, y up
     Region getBoundingBox() {return m_boundingBox;}
+    void setVisible(bool visible) {m_bVisible = visible;}
+    bool isVisible() {return m_bVisible;}
+    void setBlendMode(BlendMode mode) { m_eBlendMode = mode; }  
+    BlendMode getBlendMode() { return m_eBlendMode; }
 protected:
     Drawable(const Vector2& size, bool hasMask = false,uint16_t maskColor = 0, const uint16_t* palette = nullptr, uint8_t bpp = 1)
     : m_size(size), m_bHasMask(hasMask), m_maskColor(maskColor), m_palette(palette), m_bpp(bpp) {
@@ -55,11 +64,13 @@ protected:
     const uint8_t       m_bpp;
     Vector2             m_pivot = Vector2(0.5f, 0.5f);
     uint32_t            m_id;
+    BlendMode           m_eBlendMode = Normal;
 protected:
     virtual void updateBoundingBox();
     Region              m_boundingBox;
 private:
     bool                m_bRedraw = true;
+    bool                m_bVisible = true;
     static uint32_t     m_idCounter;
 };
 inline uint32_t Drawable::m_idCounter = 0;

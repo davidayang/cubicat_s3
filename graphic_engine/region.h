@@ -36,5 +36,8 @@ struct Region {
             h = std::max(endy, otherEndy) - y;
         }
     }
+    bool operator==(const Region& other) const {
+        return x == other.x && y == other.y && w == other.w && h == other.h;
+    }
 };
 #endif

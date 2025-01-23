@@ -12,9 +12,9 @@ menu "Cubicat Configuration"
             Remove embedded graphic engine.
 
     config USE_LINEAR_FILTER
-        bool "Use Linear Filter"
+        bool "Use Bilinear Filter"
         default y
         help
-            Render Texture Use Bilinear interpolation.
+            Render texture use bilinear interpolation. Get better result but affects drawing efficiency significantly
         
 endmenu

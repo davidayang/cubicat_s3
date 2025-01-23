@@ -104,39 +104,36 @@ void UnifiedStorage::deinit() {
 }
 nvs_handle_t nvsWriteHandle() {
     nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open(NVSNS, NVS_READWRITE, &nvs_handle);
-    if (err != ESP_OK) {
-        return -1;
-    }
+    ESP_ERROR_CHECK(nvs_open(NVSNS, NVS_READWRITE, &nvs_handle));
     return nvs_handle;
 }
 nvs_handle_t nvsReadHandle() {
     nvs_handle_t nvs_handle;
-    esp_err_t err = nvs_open(NVSNS, NVS_READONLY, &nvs_handle);
-    if (err != ESP_OK) {
-        return -1;
-    }
+    ESP_ERROR_CHECK(nvs_open(NVSNS, NVS_READONLY, &nvs_handle));
     return nvs_handle;
 }
-void UnifiedStorage::setString(const char* key, const char* value) {
+bool UnifiedStorage::setString(const char* key, const char* value) {
     if (!isSPIFFSInit()) {
-        return;
+        return false;
     }
     nvs_set_str(nvsWriteHandle(), key, value);
+    return true;
 }   
-void UnifiedStorage::setInt(const char* key, int value) {
+bool UnifiedStorage::setInt(const char* key, int value) {
     if (!isSPIFFSInit()) {
-        return;
+        return false;
     }
     nvs_set_i32(nvsWriteHandle(), key, value);
+    return true;
 }
-void UnifiedStorage::setFloat(const char* key, float value) {
+bool UnifiedStorage::setFloat(const char* key, float value) {
     if (!isSPIFFSInit()) {
-        return;
+        return false;
     }
     char str[32] = {0};
     sprintf(str, "%f", value);
     setString(key, str);
+    return true;
 }
 int UnifiedStorage::getInt(const char* key) {
     if (!isSPIFFSInit()) {
@@ -157,9 +154,8 @@ std::string UnifiedStorage::getString(const char* key) {
     if (!isSPIFFSInit()) {
         return "";
     }
-    static char temp[4000];
-    memset(temp, 0, 4000);
-    size_t len = 0;
+    static char temp[4*1024];
+    size_t len = sizeof(temp);
     nvs_get_str(nvsReadHandle(), key, temp, &len);
     return temp;
 }

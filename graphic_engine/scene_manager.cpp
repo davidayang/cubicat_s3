@@ -36,7 +36,7 @@ NodePtr SceneManager::createSpriteNode(const ImageData& img,const Vector2& pivot
 }
 NodePtr SceneManager::createPloygon(const ImageData& img,const Vector2& pivot,const char* name) {
     auto texture = Texture::create(img.width, img.height, img.data, img.col, img.row, img.palette, img.bpp, img.hasAlpha);
-    auto polygon = Polygon::create(texture->getFrameWidth(), texture->getFrameHeight(), (uint16_t*)img.data, img.hasMask, img.maskColor);
+    auto polygon = Polygon::create(texture->getFrameWidth(), texture->getFrameHeight(), img.hasMask, img.maskColor);
     polygon->setPivot(pivot.x, pivot.y);
     polygon->setTexture(texture);
     auto node = createNode(name);

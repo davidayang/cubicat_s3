@@ -4,7 +4,7 @@
 #include "esp_wifi.h"
 #include <functional>
 
-typedef std::function<void(bool,const char*)> ConnectCallback;
+typedef std::function<void(bool success,const char* ip)> ConnectCallback;
 
 class Wifi {
     friend class Cubicat;

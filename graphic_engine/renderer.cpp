@@ -4,6 +4,7 @@
 #include "definitions.h"
 #include "math/constants.h"
 #include "utils/logger.h"
+#include <string.h>
 
 bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* offsety) {
     int vpEndx = vp.x + vp.w;                                    
@@ -69,50 +70,37 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
     int16_t y3 = y0 + 1; \
     float dx = x - x0; \
     float dy = y - y0; \ 
-    float factorA = (1 - dx) * (1 - dy); \
-    float factorB = dx * (1 - dy); \
-    float factorC = (1 - dx) * dy; \
     float factorD = dx * dy; \
-    uint32_t colorNear[4]; \
+    float factorC = dy - factorD; \ 
+    float factorB = dx - factorD; \ 
+    float factorA = 1 - dx - factorC; \ 
+    uint32_t color0 = 0; \
+    uint32_t color1 = 0; \
+    uint32_t color2 = 0; \
+    uint32_t color3 = 0; \
     int c = 0; \
-    if (drawable->readPixel(x0, y0, &colorNear[c])) \
+    if (drawable->readPixel(x0, y0, &color0)) \
         c++; \
-    if (drawable->readPixel(x1, y1, &colorNear[c])) \
+    if (drawable->readPixel(x1, y1, &color1)) \
         c++; \
-    if (drawable->readPixel(x2, y2, &colorNear[c])) \
+    if (drawable->readPixel(x2, y2, &color2)) \
         c++; \
-    if (drawable->readPixel(x3, y3, &colorNear[c])) \
+    if (drawable->readPixel(x3, y3, &color3)) \
         c++; \
     if (c == 0) { \
         continue; \
     } else if (c == 4) { \
-        uint8_t r0 = (colorNear[0] >> ROffset) & 0x1F; \
-        uint8_t r1 = (colorNear[1] >> ROffset) & 0x1F; \
-        uint8_t r2 = (colorNear[2] >> ROffset) & 0x1F; \
-        uint8_t r3 = (colorNear[3] >> ROffset) & 0x1F; \
-        uint8_t g0 = (colorNear[0] >> GOffset) & 0x3F; \
-        uint8_t g1 = (colorNear[1] >> GOffset) & 0x3F; \
-        uint8_t g2 = (colorNear[2] >> GOffset) & 0x3F; \
-        uint8_t g3 = (colorNear[3] >> GOffset) & 0x3F; \
-        uint8_t b0 = (colorNear[0] >> BOffset) & 0x1F; \
-        uint8_t b1 = (colorNear[1] >> BOffset) & 0x1F; \
-        uint8_t b2 = (colorNear[2] >> BOffset) & 0x1F; \
-        uint8_t b3 = (colorNear[3] >> BOffset) & 0x1F; \
-        uint16_t rBlend = r0 * factorA + r1 * factorB + r2 * factorC + r3 * factorD; \
-        uint16_t gBlend = g0 * factorA + g1 * factorB + g2 * factorC + g3 * factorD; \
-        uint16_t bBlend = b0 * factorA + b1 * factorB + b2 * factorC + b3 * factorD; \
+        uint16_t rBlend = ((color0 >> ROffset) & 0x1F) * factorA + ((color1 >> ROffset) & 0x1F) * factorB + ((color2 >> ROffset) & 0x1F) * factorC + ((color3 >> ROffset) & 0x1F) * factorD; \
+        uint16_t gBlend = ((color0 >> GOffset) & 0x3F) * factorA + ((color1 >> GOffset) & 0x3F) * factorB + ((color2 >> GOffset) & 0x3F) * factorC + ((color3 >> GOffset) & 0x3F) * factorD; \
+        uint16_t bBlend = ((color0 >> BOffset) & 0x1F) * factorA + ((color1 >> BOffset) & 0x1F) * factorB + ((color2 >> BOffset) & 0x1F) * factorC + ((color3 >> BOffset) & 0x1F) * factorD; \
         if (hasAlpha) { \
-            uint8_t a0 = colorNear[0] & 0xff; \
-            uint8_t a1 = colorNear[1] & 0xff; \
-            uint8_t a2 = colorNear[2] & 0xff; \
-            uint8_t a3 = colorNear[3] & 0xff; \ 
-            uint8_t aBlend = a0 * factorA + a1 * factorB + a2 * factorC + a3 * factorD; \
+            uint8_t aBlend = (color0 & 0xff) * factorA + (color1 & 0xff) * factorB + (color2 & 0xff) * factorC + (color3 & 0xff) * factorD; \
             color = (rBlend << ROffset) | (gBlend << GOffset) | (bBlend << BOffset) | aBlend; \
         } else { \
             color = (rBlend << 11) | (gBlend << 5) | bBlend; \
         } \
     } else { \
-        color = colorNear[0]; \
+        color = color0; \
     }
 
 #define AlphaBlend(x, y, color) \
@@ -121,20 +109,36 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
         continue; \
     /*处理alpha通道 RGBA: 5658*/ \
     if (hasAlpha) { \
-        uint16_t rgb = color >> 8; \
+        uint32_t rgb = color >> 8; \
         uint8_t alpha = color & 0xff; \
         if (alpha == 0) { \
             continue; \
-        } \
-        if (alpha == 255) { \
+        } else if (alpha == 255) { \
             color = rgb; \
         } else { \
             auto bgColor = ReadPixel(x, y); \
-            /*mix color with bg color use alpha*/ \ 
-            uint8_t r = (((rgb >> 11) & 0x1F) * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8; \
-            uint8_t g = (((rgb >> 5) & 0x3F) * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
-            uint8_t b = ((rgb & 0x1F) * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
-            color = (r << 11) | (g << 5) | b; \
+            if (blendMode == Drawable::Normal) { \
+                uint8_t r = (((rgb >> 11) & 0x1F) * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8; \
+                uint8_t g = (((rgb >> 5) & 0x3F) * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = ((rgb & 0x1F) * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                color = (r << 11) | (g << 5) | b; \
+            } else if (blendMode == Drawable::Additive) { \
+                uint16_t r = ((((rgb >> 11) & 0x1F) * alpha) >> 8) + ((bgColor >> 11) & 0x1F); \
+                if (r > 0x1F) \
+                    r = 0x1F; \
+                uint16_t g = ((((rgb >> 5) & 0x3F) * alpha) >> 8) + ((bgColor >> 5) & 0x3F); \
+                if (g > 0x3F) \
+                    g = 0x3F; \
+                uint16_t b = (((rgb & 0x1F) * alpha) >> 8) + (bgColor & 0x1F); \
+                if (b > 0x1F) \
+                    b = 0x1F; \
+                color = (r << 11) | (g << 5) | b; \
+            } else {\
+                uint8_t r = (((rgb >> 11) & 0x1F) * ((bgColor >> 11) & 0x1F) / 65025 * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8; \
+                uint8_t g = (((rgb >> 5) & 0x3F) * ((bgColor >> 5) & 0x3F) / 65025 * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = ((rgb & 0x1F) * (bgColor & 0x1F) / 65025 * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                color = (r << 11) | (g << 5) | b; \
+            } \
         } \
     } 
 
@@ -156,6 +160,7 @@ void Renderer::drawPolygon(Polygon *poly) {
     uint16_t texHeight = 0;
     auto texture = poly->getTexture();
     auto hasAlpha = false;
+    auto blendMode = poly->getBlendMode();
     if (texture) {
         texWidth = texture->getFrameWidth();
         texHeight = texture->getFrameHeight();
@@ -173,17 +178,19 @@ void Renderer::drawPolygon(Polygon *poly) {
     bbox.y = m_viewPort.h - bbox.y;
     RegionClip(m_dirtyWindow, bbox, nullptr, nullptr);
     auto color = poly->getColor();
+    int leftBorder = bbox.x;
+    int rightBorder = bbox.x + bbox.w;
     for (int y = bbox.y; y < bbox.y + bbox.h; y++) {
         int worldY = m_viewPort.h - y;
-        std::vector<IntersectionPoint> points = poly->scanline(worldY);
-        for (int i = 0; i < points.size(); i+=2) {
-            auto& p0 = points[i];
-            auto& p1 = points[i + 1];
+        auto scanResult = poly->scanline(worldY);
+        for (int i = 0; i < scanResult.size; i+=2) {
+            auto& p0 = scanResult.points[i];
+            auto& p1 = scanResult.points[i + 1];
             // two intersection point is out of view port
-            if (p0.x < 0 && p1.x < 0) {
+            if (p0.x < leftBorder && p1.x < leftBorder) {
                 continue;
             }
-            if (p0.x >= m_viewPort.w && p1.x >= m_viewPort.w) {
+            if (p0.x >= rightBorder && p1.x >= rightBorder) {
                 continue;
             }
             // two intersection point is overlapped
@@ -209,9 +216,10 @@ void Renderer::drawPolygon(Polygon *poly) {
             for (int x = startPos; x < endPos; x++) {
                 // sample color only when has texture, otherwise use polygon color
                 if (texture) {
-                    // calc u, v
-                    float u = p0.u + u_offset;
-                    float v = p0.v + v_offset;
+                    // calc u, v and epsilon for percision correction
+                    const float epsilon = 0.0001f;
+                    float u = p0.u + u_offset + epsilon;
+                    float v = p0.v + v_offset + epsilon;
                     u_offset += u_step;
                     v_offset += v_step;
                     float uCoord = u * texWidth;
@@ -235,7 +243,7 @@ void Renderer::drawPolygon(Polygon *poly) {
 }
 void Renderer::draw(Drawable *drawable)
 {
-    if (drawable->isA<Polygon>()) {
+    if (drawable->ofA<Polygon>()) {
         drawPolygon((Polygon*)drawable);
         return;
     }
@@ -246,6 +254,7 @@ void Renderer::draw(Drawable *drawable)
         auto hasMask = drawable->hasMask();
         auto maskColor = drawable->getMaskColor();
         auto hasAlpha = drawable->hasAlpha();
+        auto blendMode = drawable->getBlendMode();
         int16_t angle = drawable->getAngle();
         const Vector2&  scale = drawable->getScale();
         bool hasScale = abs(scale.x - 1) > 0.001 || abs(scale.y - 1) > 0.001;
@@ -424,6 +433,11 @@ void Renderer::clear() {
     auto bgColor = m_pBackBufferInterface->getBackgroundColor();
     auto rect = m_dirtyWindow;
     rect.combine(m_lastHotRegion);
+    RegionClip(m_viewPort, rect, nullptr, nullptr);
+    if (rect == m_viewPort) {
+        memset(data, bgColor, m_viewPort.w * m_viewPort.h * sizeof(uint16_t));
+        return;
+    }
     for (int row = rect.y; row < rect.y + rect.h; row++) {
         for (int col = rect.x; col < rect.x + rect.w; col++) {
             data[row * m_viewPort.w + col] = bgColor;

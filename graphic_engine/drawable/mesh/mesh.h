@@ -19,9 +19,12 @@ public:
         }
         return &m_pVertex[index];
     }
-    inline uint16_t getIndex(uint32_t index) { return m_pIndices[index]; }
+    inline uint16_t getVertexIndexByIndex(uint32_t index) { assert(index < m_iIndexCount); return m_pIndices[index]; }
     uint16_t getVertexCount() { return m_iVertexCount; }
     uint16_t getIndexCount() { return m_iIndexCount; }
+    void updateVertices(float* pos, uint16_t vertexCount);
+    void updateIndices(uint16_t* pIndices, uint16_t indexCount);
+    void updateUVs(float* uvs, uint16_t vertexCount);
 private:
     Mesh(Vertex* pVertex, uint16_t iVertexCount, uint16_t* pIndices, uint16_t iIndexCount);
     Vertex*     m_pVertex;

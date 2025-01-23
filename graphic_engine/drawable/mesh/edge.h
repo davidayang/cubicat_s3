@@ -10,10 +10,6 @@ struct Edge {
     float v;    // yMin处的纹理坐标v
     float du;   // 纹理坐标u增量
     float dv;   // 纹理坐标v增量
-    // 重载运算符以便在集合中使用
-    bool operator<(const Edge& other) const {
-        return std::tie(x, dx, yMax) < std::tie(other.x, other.dx, other.yMax);
-    }
 };
 
 #endif
