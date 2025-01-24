@@ -138,8 +138,10 @@ void Polygon::caculateEdges() {
         }
     }
     // create aet buffer with size m_nETSize
-    if (!m_vAET) {
+    if (m_nETSize > m_nAETCacheSize) {
+        if (m_vAET) heap_caps_free(m_vAET);
         m_vAET = (Edge**)psram_prefered_malloc(m_nETSize * sizeof(Edge*));
+        m_nAETCacheSize = m_nETSize;
     }
     // create intersection point buffer with size m_nETSize
     if (s_nIntersectionPointsSize < m_nETSize) {
@@ -154,17 +156,29 @@ void Polygon::updateBoundingBox() {
     caculateEdges();
 }
 
-IntersectionPointVec Polygon::scanline(uint16_t y) {
-    m_nLastScanY = y;
-    // m_vAET.clear();
-    int m_nAETSize = 0;
-    for (int i=0;i<m_nETSize;++i) {
-        if (y <= m_vET[i].yMax) {
-            if (y >= m_vET[i].yMin) {
-                m_vAET[m_nAETSize++] = &m_vET[i];
-            }
+// faster than std::sort in small array
+template <typename T>
+void InsertSort(T* array, int n) {
+    for (int i = 1; i < n; i++) {
+        T key = array[i];
+        int j = i - 1;
+        while (j >= 0 && array[j] > key) {
+            array[j + 1] = array[j];
+            j--;
         }
-    } 
+        array[j + 1] = key;
+    }
+}
+
+IntersectionPointVec Polygon::scanline(uint16_t y) {
+    int m_nAETSize = 0;
+    Edge* e = &m_vET[0];
+    for (int i=0;i<m_nETSize;++i) {
+        if (y <= e->yMax && y >= e->yMin) {
+            m_vAET[m_nAETSize++] = e;
+        }
+        e++;
+    }
     IntersectionPointVec retVec;
     retVec.size = m_nAETSize;
     retVec.points = s_vIntersectionPoints;
@@ -176,6 +190,6 @@ IntersectionPointVec Polygon::scanline(uint16_t y) {
         retVec.points[i].v = e->v + e->dv * (y - e->yMin);
     }
     // sort intersection points by x
-    std::sort(retVec.points, retVec.points + m_nAETSize);
+    InsertSort(retVec.points, m_nAETSize);
     return retVec;
 }

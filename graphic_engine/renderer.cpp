@@ -186,14 +186,14 @@ void Renderer::drawPolygon(Polygon *poly) {
         for (int i = 0; i < scanResult.size; i+=2) {
             auto& p0 = scanResult.points[i];
             auto& p1 = scanResult.points[i + 1];
-            // two intersection point is out of view port
+            // two intersection points are out of view port
             if (p0.x < leftBorder && p1.x < leftBorder) {
                 continue;
             }
             if (p0.x >= rightBorder && p1.x >= rightBorder) {
                 continue;
             }
-            // two intersection point is close than 1 pixel
+            // two intersection points are close than 1 pixel
             float len = p1.x - p0.x;
             if (len < 1.0f) {
                 len = 1.0f;

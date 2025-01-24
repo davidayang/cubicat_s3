@@ -14,6 +14,7 @@ struct IntersectionPoint{
     float u;
     float v;
     bool operator<(const IntersectionPoint& other) const {return x < other.x;}
+    bool operator>(const IntersectionPoint& other) const {return x > other.x;}
 };
 
 struct IntersectionPointVec{
@@ -49,9 +50,11 @@ protected:
     // std::vector<Edge>        m_vET;
     Edge*                       m_vET = nullptr;
     uint16_t                    m_nETSize = 0;
+    uint16_t                    m_nLastScanedIndex = 0;
     // active edge table
     // std::vector<Edge*>       m_vAET;
     Edge**                      m_vAET = nullptr;
+    uint32_t                    m_nAETCacheSize = 0;
     uint16_t                    m_nAETSize = 0;
     uint16_t                    m_Color = 0xFFFF;
     // intersection points size is same as total edge table size
