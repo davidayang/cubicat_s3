@@ -21,10 +21,11 @@ uint16_t g_iWorldVertexCacheSize = 0;
     edge.v = vLow.v;
 
 IntersectionPoint* Polygon::s_vIntersectionPoints = nullptr;
+uint16_t Polygon::s_nIntersectionPointsSize = 0;
 
 Polygon::Polygon(float width, float height, bool hasMask, uint16_t maskColor)
  : Drawable(Vector2(width, height), hasMask, maskColor) {
-    Vertex* vertices = new Vertex[4]; 
+    Vertex* vertices = (Vertex*)malloc(4 * sizeof(Vertex));
     vertices[0].x = 0;
     vertices[0].y = height;
     vertices[0].u = 0;
@@ -45,7 +46,7 @@ Polygon::Polygon(float width, float height, bool hasMask, uint16_t maskColor)
     vertices[3].u = 0;
     vertices[3].v = 1;
 
-    uint16_t* indices = new uint16_t[6];
+    uint16_t* indices = (uint16_t*)malloc(6 * sizeof(uint16_t));
     indices[0] = 0;
     indices[1] = 1;
     indices[2] = 2;
@@ -141,7 +142,11 @@ void Polygon::caculateEdges() {
         m_vAET = (Edge**)psram_prefered_malloc(m_nETSize * sizeof(Edge*));
     }
     // create intersection point buffer with size m_nETSize
-    if (!s_vIntersectionPoints) {
+    if (s_nIntersectionPointsSize < m_nETSize) {
+        if (s_vIntersectionPoints) {
+            heap_caps_free(s_vIntersectionPoints);
+        }
+        s_nIntersectionPointsSize = m_nETSize;
         s_vIntersectionPoints = (IntersectionPoint*)psram_prefered_malloc(m_nETSize * sizeof(IntersectionPoint));
     }
 }

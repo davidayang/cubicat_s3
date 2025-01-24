@@ -137,7 +137,7 @@ inline uint16_t* generateSinglePalette(uint16_t color) {
     y = y1; } \
 
 inline void Drawable::updateBoundingBox() {
-    bool hasScale = abs(m_scale.x - 1) > 0.001 || abs(m_scale.y - 1) > 0.001;
+    bool hasScale = abs(m_scale.x - 1) > 0.0001 || abs(m_scale.y - 1) > 0.0001;
     bool hasRot = m_angle != 0;
     uint16_t w = m_size.x;
     uint16_t h = m_size.y;

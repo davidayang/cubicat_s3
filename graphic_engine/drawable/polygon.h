@@ -56,6 +56,7 @@ protected:
     uint16_t                    m_Color = 0xFFFF;
     // intersection points size is same as total edge table size
     static IntersectionPoint*   s_vIntersectionPoints;
+    static uint16_t             s_nIntersectionPointsSize;
 };
 
 typedef SharedPtr<Polygon> PolygonPtr;

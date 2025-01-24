@@ -24,7 +24,7 @@ public:
     uint16_t getIndexCount() { return m_iIndexCount; }
     void updateVertices(float* pos, uint16_t vertexCount);
     void updateIndices(uint16_t* pIndices, uint16_t indexCount);
-    void updateUVs(float* uvs, uint16_t vertexCount);
+    void updateUVs(float* uvs, uint16_t uvCount);
 private:
     Mesh(Vertex* pVertex, uint16_t iVertexCount, uint16_t* pIndices, uint16_t iIndexCount);
     Vertex*     m_pVertex;

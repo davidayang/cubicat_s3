@@ -162,8 +162,8 @@ void Renderer::drawPolygon(Polygon *poly) {
     auto hasAlpha = false;
     auto blendMode = poly->getBlendMode();
     if (texture) {
-        texWidth = texture->getFrameWidth();
-        texHeight = texture->getFrameHeight();
+        texWidth = texture->getFrameWidth() - 1;
+        texHeight = texture->getFrameHeight() - 1;
         hasAlpha = texture->hasAlpha();
     }
     auto hasRot = poly->getAngle() != 0;
@@ -193,10 +193,10 @@ void Renderer::drawPolygon(Polygon *poly) {
             if (p0.x >= rightBorder && p1.x >= rightBorder) {
                 continue;
             }
-            // two intersection point is overlapped
+            // two intersection point is close than 1 pixel
             float len = p1.x - p0.x;
-            if (len == 0) {
-                continue;
+            if (len < 1.0f) {
+                len = 1.0f;
             }
             int startPos = p0.x;
             int endPos = p1.x;
@@ -370,7 +370,7 @@ void Renderer::renderObjects(const std::vector<DrawablePtr>& drawables)
     // only draw dirty region
     if (m_dirtyWindow.w > 0 && m_dirtyWindow.h > 0) {
         // draw all drawables
-        for (auto drawable : drawables)
+        for (auto& drawable : drawables)
         {
             draw(drawable);
         }
