@@ -7,7 +7,6 @@ import struct
 import sys
 import wave
 import shutil
-import numpy as np
 import pyaudio
 from PIL import Image, ImageDraw, ImageFont
 
@@ -17,9 +16,9 @@ UTF_CODE = "utf-16"
 def rgb_to_hex(rgb, byte_order: str = 'big'):
     num_bytes = (rgb.bit_length() + 7) // 8  # 计算所需的字节数
     byte_array = rgb.to_bytes(num_bytes, byteorder=byte_order)
-    hex_little_endian = byte_array.hex().upper()
-    hex_little_endian = "0x" + hex_little_endian.zfill(4)
-    return hex_little_endian
+    hex_value = byte_array.hex().upper()
+    hex_value = "0x" + hex_value.zfill(4)
+    return hex_value
 
 
 def play_audio_data(audio_bytes, sample_rate=44100, channels=2):
@@ -41,10 +40,11 @@ def play_audio_data(audio_bytes, sample_rate=44100, channels=2):
     p.terminate()
 
 
-def createImageCpp(img_name, col, row, has_trans, palette):
+def createImageCpp(img_name, col, row, mask_mode, palette):
     image = Image.open(img_name)
-    if image.mode != 'RGB':
+    if mask_mode and image.mode != 'RGB':
         image = image.convert('RGB')
+    has_alpha = image.mode == "RGBA"
     pixel_data = image.load()
     out_data = []
     width = math.floor(image.size[0] / col)
@@ -59,10 +59,18 @@ def createImageCpp(img_name, col, row, has_trans, palette):
                     end = c == (col - 1) and r == (row - 1) and h == (height - 1) and w == (width - 1)
                     x = c * width + w
                     y = r * height + h
-                    R = pixel_data[x, y][0] >> 3
-                    G = pixel_data[x, y][1] >> 2
-                    B = pixel_data[x, y][2] >> 3
-                    rgb = (R << 11) | (G << 5) | B
+                    color = pixel_data[x, y]
+                    if has_alpha:
+                        R = color[0]
+                        G = color[1]
+                        B = color[2]
+                        A = color[3]
+                        rgb = (R << 24) | (G << 16) | (B << 8) | A
+                    else:
+                        R = color[0] >> 3
+                        G = color[1] >> 2
+                        B = color[2] >> 3
+                        rgb = (R << 11) | (G << 5) | B
                     if not first_color:
                         first_color = rgb_to_hex(rgb)
                     if palette:
@@ -82,7 +90,7 @@ def createImageCpp(img_name, col, row, has_trans, palette):
     filename = img_name.split(".")[0] + "_img"
     with open("generated/imgs/" + filename + ".cpp", 'w') as file:
         file.write('#include "images.h"\n')
-        file.write(f"const uint16_t {filename.upper()}[] PROGMEM = {{ \n")
+        file.write(f"const {'uint16_t' if not has_alpha else 'uint32_t'} {filename.upper()}[] PROGMEM = {{ \n")
         file.write(content + "\n};\n")
         if palette:
             file.write(f"const uint16_t palette[2] = {{0x0000, 0xFFFF}};\n")
@@ -91,15 +99,16 @@ def createImageCpp(img_name, col, row, has_trans, palette):
         file.write(f"\t.height = {image.height},\n")
         file.write(f"\t.col = {col},\n")
         file.write(f"\t.row = {row},\n")
-        file.write(f"\t.hasMask = {has_trans},\n")
-        file.write(f"\t.maskColor = {first_color if has_trans else 0},\n")
+        file.write(f"\t.hasMask = {mask_mode},\n")
+        file.write(f"\t.hasAlpha = {1 if has_alpha and not mask_mode else 0},\n")
+        file.write(f"\t.maskColor = {first_color if mask_mode else 0},\n")
         file.write(f"\t.data = {filename.upper()},\n")
         if palette:
             file.write(f"\t.palette = palette,\n")
             file.write(f"\t.bpp = 1,\n")
         else:
             file.write(f"\t.palette = nullptr,\n")
-            file.write(f"\t.bpp = 16,\n")
+            file.write(f"\t.bpp = {16 if not has_alpha else 32},\n")
         file.write(f"}};\n")
     image.close()
 
@@ -294,12 +303,18 @@ if __name__ == '__main__':
     os.makedirs("generated/temp", exist_ok=True)
 
     # images
-    # img [x, y, z, w] x: colum count, y: row count, z: transparent,w: palette mode
-    imgs = {"cafe_large.png": [1, 1, 0, 0], "stickman_walk.png": [4, 5, 1, 1]}
+    # img [x, y, z, w]
+    # x: colum count
+    # y: row count
+    # z: mask mode (top left color be the mask color)
+    # w: use palette(black and white only for now)
+    # example: imgs = {"background.png": [1, 1, 0, 0]}
+    imgs = {}
     # sounds
     sounds = []
     # fonts
-    fonts = {"msyhbd.ttc": 18}
+    # example: fonts = {"msyhbd.ttc": 18}
+    fonts = {}
     # mounting points
     mountingPoints = {}
 

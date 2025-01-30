@@ -90,13 +90,20 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
     if (c == 0) { \
         continue; \
     } else if (c == 4) { \
-        uint16_t rBlend = ((color0 >> ROffset) & 0x1F) * factorA + ((color1 >> ROffset) & 0x1F) * factorB + ((color2 >> ROffset) & 0x1F) * factorC + ((color3 >> ROffset) & 0x1F) * factorD; \
-        uint16_t gBlend = ((color0 >> GOffset) & 0x3F) * factorA + ((color1 >> GOffset) & 0x3F) * factorB + ((color2 >> GOffset) & 0x3F) * factorC + ((color3 >> GOffset) & 0x3F) * factorD; \
-        uint16_t bBlend = ((color0 >> BOffset) & 0x1F) * factorA + ((color1 >> BOffset) & 0x1F) * factorB + ((color2 >> BOffset) & 0x1F) * factorC + ((color3 >> BOffset) & 0x1F) * factorD; \
         if (hasAlpha) { \
-            uint8_t aBlend = (color0 & 0xff) * factorA + (color1 & 0xff) * factorB + (color2 & 0xff) * factorC + (color3 & 0xff) * factorD; \
-            color = (rBlend << ROffset) | (gBlend << GOffset) | (bBlend << BOffset) | aBlend; \
+            uint8_t* _color0 = (uint8_t*)&color0; \
+            uint8_t* _color1 = (uint8_t*)&color1; \
+            uint8_t* _color2 = (uint8_t*)&color2; \
+            uint8_t* _color3 = (uint8_t*)&color3; \
+            uint8_t* colorOut = (uint8_t*)&color; \
+            colorOut[0] = _color0[0] * factorA + _color1[0] * factorB + _color2[0] * factorC + _color3[0] * factorD; \
+            colorOut[1] = _color0[1] * factorA + _color1[1] * factorB + _color2[1] * factorC + _color3[1] * factorD; \
+            colorOut[2] = _color0[2] * factorA + _color1[2] * factorB + _color2[2] * factorC + _color3[2] * factorD; \
+            colorOut[3] = _color0[3] * factorA + _color1[3] * factorB + _color2[3] * factorC + _color3[3] * factorD; \
         } else { \
+            uint16_t rBlend = (color0 >> 11) * factorA + (color1 >> 11) * factorB + (color2 >> 11) * factorC + (color3 >> 11) * factorD; \
+            uint16_t gBlend = ((color0 >> 5) & 0x3F) * factorA + ((color1 >> 5) & 0x3F) * factorB + ((color2 >> 5) & 0x3F) * factorC + ((color3 >> 5) & 0x3F) * factorD; \
+            uint16_t bBlend = (color0 & 0x1F) * factorA + (color1 & 0x1F) * factorB + (color2 & 0x1F) * factorC + (color3 & 0x1F) * factorD; \
             color = (rBlend << 11) | (gBlend << 5) | bBlend; \
         } \
     } else { \
@@ -104,39 +111,41 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
     }
 
 #define AlphaBlend(x, y, color) \
-    /*处理透明像素,直接跳过*/ \
+    /* escape if pixel has mask color*/ \
     if (hasMask && color == maskColor) \
         continue; \
-    /*处理alpha通道 RGBA: 5658*/ \
+    /* if pixel has alpha channel. pixel format: RGBA8888*/ \
     if (hasAlpha) { \
-        uint32_t rgb = color >> 8; \
+        uint8_t _r = color >> 27; \
+        uint8_t _g = (color >> 18) & 0x3F; \
+        uint8_t _b = (color >> 11) & 0x1F; \
         uint8_t alpha = color & 0xff; \
         if (alpha == 0) { \
             continue; \
         } else if (alpha == 255) { \
-            color = rgb; \
+            color = (_r << 11) | (_g << 5) | _b; \
         } else { \
             auto bgColor = ReadPixel(x, y); \
             if (blendMode == Drawable::Normal) { \
-                uint8_t r = (((rgb >> 11) & 0x1F) * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8; \
-                uint8_t g = (((rgb >> 5) & 0x3F) * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
-                uint8_t b = ((rgb & 0x1F) * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                uint8_t r = (_r * alpha + (bgColor >> 11) * (255 - alpha)) >> 8; \
+                uint8_t g = (_g * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = (_b * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
                 color = (r << 11) | (g << 5) | b; \
             } else if (blendMode == Drawable::Additive) { \
-                uint16_t r = ((((rgb >> 11) & 0x1F) * alpha) >> 8) + ((bgColor >> 11) & 0x1F); \
+                uint16_t r = ((_r * alpha) >> 8) + (bgColor >> 11); \
                 if (r > 0x1F) \
                     r = 0x1F; \
-                uint16_t g = ((((rgb >> 5) & 0x3F) * alpha) >> 8) + ((bgColor >> 5) & 0x3F); \
+                uint16_t g = ((_g * alpha) >> 8) + ((bgColor >> 5) & 0x3F); \
                 if (g > 0x3F) \
                     g = 0x3F; \
-                uint16_t b = (((rgb & 0x1F) * alpha) >> 8) + (bgColor & 0x1F); \
+                uint16_t b = ((_b * alpha) >> 8) + (bgColor & 0x1F); \
                 if (b > 0x1F) \
                     b = 0x1F; \
                 color = (r << 11) | (g << 5) | b; \
             } else {\
-                uint8_t r = (((rgb >> 11) & 0x1F) * ((bgColor >> 11) & 0x1F) / 65025 * alpha + ((bgColor >> 11) & 0x1F) * (255 - alpha)) >> 8; \
-                uint8_t g = (((rgb >> 5) & 0x3F) * ((bgColor >> 5) & 0x3F) / 65025 * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
-                uint8_t b = ((rgb & 0x1F) * (bgColor & 0x1F) / 65025 * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                uint8_t r = (_r * ((bgColor >> 11) & 0x1F) / 65025 * alpha + (bgColor >> 11) * (255 - alpha)) >> 8; \
+                uint8_t g = (_g * ((bgColor >> 5) & 0x3F) / 65025 * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = (_b * (bgColor & 0x1F) / 65025 * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
                 color = (r << 11) | (g << 5) | b; \
             } \
         } \
@@ -168,16 +177,14 @@ void Renderer::drawPolygon(Polygon *poly) {
     }
     auto hasRot = poly->getAngle() != 0;
     auto hasScale = poly->getScale().x != 1.0f || poly->getScale().y != 1.0f;
+    auto bilinear = texture && poly->isBilinearFilter();
     auto hasMask = poly->hasMask();
     auto maskColor = poly->getMaskColor();
-    uint8_t ROffset = hasAlpha? 19 : 11;
-    uint8_t GOffset = hasAlpha? 13 : 5;
-    uint8_t BOffset = hasAlpha? 8 : 0;
     auto bbox = poly->getBoundingBox();
     // change to screen coordinate
     bbox.y = m_viewPort.h - bbox.y;
     RegionClip(m_dirtyWindow, bbox, nullptr, nullptr);
-    auto color = poly->getColor();
+    uint32_t color = poly->getColor();
     int leftBorder = bbox.x;
     int rightBorder = bbox.x + bbox.w;
     for (int y = bbox.y; y < bbox.y + bbox.h; y++) {
@@ -224,8 +231,8 @@ void Renderer::drawPolygon(Polygon *poly) {
                     v_offset += v_step;
                     float uCoord = u * texWidth;
                     float vCoord = v * texHeight;
-#ifdef CONFIG_USE_LINEAR_FILTER
-                    if (hasRot || hasScale) {
+#ifdef CONFIG_ENABLE_BILINEAR_FILTER
+                    if (hasRot || hasScale || bilinear) {
                         SamplePixelBilinear(texture, uCoord, vCoord, color);
                     } else {
                         SamplePixel(texture, uCoord, vCoord, color);
@@ -302,8 +309,8 @@ void Renderer::draw(Drawable *drawable)
                     int16_t _x = i + _offx;
                     int16_t _y = j + _offy;
                     if (hasRot) {
-                        int16_t _xr = (_x * cosa - _y * sina) >> FP_SCALE_POW;
-                        int16_t _yr = (_x * sina + _y * cosa) >> FP_SCALE_POW;
+                        int16_t _xr = (_x * cosa - _y * sina) >> FP_SCALE_SHIFT;
+                        int16_t _yr = (_x * sina + _y * cosa) >> FP_SCALE_SHIFT;
                         _x = _xr;
                         _y = _yr;
                     }
@@ -316,7 +323,7 @@ void Renderer::draw(Drawable *drawable)
                     _x += originCenterX;
                     _y += originCenterY;
                     uint32_t color;
-#ifdef CONFIG_USE_LINEAR_FILTER
+#ifdef CONFIG_ENABLE_BILINEAR_FILTER
                     SamplePixelBilinear(drawable, _x, _y, color);
 #else
                     SamplePixel(drawable, _x, _y, color);

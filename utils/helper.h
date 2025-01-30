@@ -11,13 +11,11 @@
 #include <iomanip>
 #include <ctime>
 
-#define BENCHMARK(code)                \
-    {                                  \
-        int64_t startTime = micros();  \
-        code;                          \
-        int64_t endTime = micros();    \
-        printf("file:%s line[%d]: %ld ms (%ld us)\n", __FILE__, __LINE__, uint32_t(endTime - startTime)/1000, uint32_t(endTime - startTime)); \
-    }
+#define BENCHMARK(code)                     \
+    int64_t startTime##__LINE__ = micros(); \
+    code;                                   \
+    int64_t endTime##__LINE__ = micros();   \
+    printf("file:%s line[%d]: %ld ms (%ld us)\n", __FILE__, __LINE__, uint32_t(endTime##__LINE__ - startTime##__LINE__)/1000, uint32_t(endTime##__LINE__ - startTime##__LINE__));
 
 #define MEMORY_REPORT memoryReport(__FILE__, __LINE__);
 

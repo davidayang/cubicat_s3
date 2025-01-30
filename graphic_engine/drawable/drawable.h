@@ -49,6 +49,8 @@ public:
     bool isVisible() {return m_bVisible;}
     void setBlendMode(BlendMode mode) { m_eBlendMode = mode; }  
     BlendMode getBlendMode() { return m_eBlendMode; }
+    void setBilinearFilter(bool b) { m_bBilinearFilter = b; }
+    bool isBilinearFilter() { return m_bBilinearFilter; }
 protected:
     Drawable(const Vector2& size, bool hasMask = false,uint16_t maskColor = 0, const uint16_t* palette = nullptr, uint8_t bpp = 1)
     : m_size(size), m_bHasMask(hasMask), m_maskColor(maskColor), m_palette(palette), m_bpp(bpp) {
@@ -65,6 +67,7 @@ protected:
     Vector2             m_pivot = Vector2(0.5f, 0.5f);
     uint32_t            m_id;
     BlendMode           m_eBlendMode = Normal;
+    bool                m_bBilinearFilter = false;
 protected:
     virtual void updateBoundingBox();
     Region              m_boundingBox;
@@ -107,11 +110,11 @@ inline uint32_t Drawable::readPixelUnsafe(uint32_t x, uint32_t y) {
             value = m_palette[value >> (15-subIndex) & 0x1];
         }
         return value;
-    } else if (m_bpp == 24) {
+    } else if (m_bpp == 32) {
         const uint32_t* address = (uint32_t*)data + offset;
-        uint32_t value = *(address);
-        return value;
+        return *address;
     } else {
+        assert(0 && "Invalid color depth");
         return 0;
     }
 }
@@ -125,8 +128,8 @@ inline uint16_t* generateSinglePalette(uint16_t color) {
     return palette;
 }
 #define RotatePoint(x, y, sina, cosa) { \
-    uint16_t x1 = (x * cosa - y * sina) >> FP_SCALE_POW; \
-    uint16_t y1 = (x * sina + y * cosa) >> FP_SCALE_POW; \
+    uint16_t x1 = (x * cosa - y * sina) >> FP_SCALE_SHIFT; \
+    uint16_t y1 = (x * sina + y * cosa) >> FP_SCALE_SHIFT; \
     x = x1; \
     y = y1; } \
 

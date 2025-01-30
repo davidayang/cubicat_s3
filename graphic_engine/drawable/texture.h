@@ -66,10 +66,11 @@ inline uint32_t Texture::readPixelUnsafe(uint32_t x, uint32_t y) {
             value = m_palette[value >> (15-subIndex) & 0x1];
         }
         return value;
-    } else if (m_bpp == 24) {
+    } else if (m_bpp == 32) {
         const uint32_t* address = (uint32_t*)m_pFramePtr + offset;
         return *address;
     } else {
+        assert(0 && "Invalid color depth");
         return 0;
     }
 }

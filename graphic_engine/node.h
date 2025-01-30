@@ -75,7 +75,7 @@ private:
     std::vector<DrawablePtr>    m_vDrawables;
     std::vector<ComponentPtr>   m_vComponents;
     Node*                       m_pParent;
-    std::string                      m_name;
+    std::string                 m_name;
     unsigned int                m_Id;
     static unsigned int         m_sIdCounter;
     bool                        m_bVisible;
