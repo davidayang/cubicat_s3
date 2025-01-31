@@ -5,6 +5,7 @@
 #include "core/macros.h"
 #include <cstdio>
 #include <string>
+#include <vector>
 
 class UnifiedStorage : public MemoryObject
 {
@@ -24,6 +25,8 @@ public:
     std::string getString(const char* key);
     void saveFileSD(const char* filename, const char* content, int len, bool binary = true, bool append = false);
     FILE* openFileSD(const char* filename, bool binary = true);
+    bool partitionSelect(const char* label);
+    const std::vector<std::string>& getPartitions();
     void saveFileFlash(const char* filename, const char* content, int len, bool binary = true, bool append = false);
     FILE* openFileFlash(const char* filename, bool binary = true);
     uint32_t getFlashFreeSpace(const char* partition_label = "spiffs");
@@ -34,6 +37,8 @@ private:
     bool isSDInit();
     bool m_bSDInited = false;
     bool m_bFlashInited = false;
+    std::vector<std::string> m_vFlashPartitions;
+    std::string m_sCurrentPartition;
 };
 
 

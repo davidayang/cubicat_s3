@@ -7,7 +7,6 @@
 #include <string.h>
 #include "utils/logger.h"
 
-#define FLASHPATH "/spiffs"
 #define SDPATH "/sdcard"
 #define NVSNS "nvs"
 #define MMC_HOST_SLOT SDMMC_HOST_SLOT_0
@@ -38,17 +37,40 @@ void UnifiedStorage::init(bool sd)
     }
     // init SPIFFS 
     if (!m_bFlashInited) {
-        esp_vfs_spiffs_conf_t conf = {
-            .base_path = FLASHPATH,
-            .partition_label = NULL,
-            .max_files = 5,
-            .format_if_mount_failed = true
-        };
-        ret = esp_vfs_spiffs_register(&conf);
-        if (ret != ESP_OK) {
-            printf("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
+        esp_partition_iterator_t partItr = esp_partition_find(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_SPIFFS, NULL);
+        if (partItr == NULL) {
+            printf("No SPIFFS partition found\n");
         } else {
             m_bFlashInited = true;
+            uint8_t spiffsCount = 0;
+            while (partItr != NULL) {
+                const esp_partition_t* part = esp_partition_get(partItr);
+                char basePath[32] = {0};
+                if (strlen(part->label) > 0) {
+                    snprintf(basePath, sizeof(basePath), "/%s", part->label);
+                } else {
+                    sprintf(basePath, "/spiffs%d", spiffsCount);
+                }
+                if (m_sCurrentPartition.empty()) {
+                    m_sCurrentPartition = basePath;
+                }
+                esp_vfs_spiffs_conf_t conf = {
+                    .base_path = basePath,
+                    .partition_label = part->label,
+                    .max_files = 5,
+                    .format_if_mount_failed = true
+                };
+                ret = esp_vfs_spiffs_register(&conf);
+                if (ret != ESP_OK) {
+                    printf("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
+                    m_bFlashInited = false;
+                    break;
+                }
+                m_vFlashPartitions.push_back(basePath);
+                spiffsCount++;
+                partItr = esp_partition_next(partItr);
+            }
+            esp_partition_iterator_release(partItr);
         }
     }
     // init SD card
@@ -191,22 +213,42 @@ FILE* UnifiedStorage::openFileSD(const char* filename, bool binary) {
     sprintf(path, "%s/%s", SDPATH, filename);
     return fopen(path, binary?"rb":"r");
 }
+bool UnifiedStorage::partitionSelect(const char* label) {
+    if (!m_bFlashInited) {
+        LOGI("select partition failed flash not inited yet\n");
+        return false;
+    }
+    std::string basePath(label);   
+    if (basePath[0] != '/') {
+        basePath = "/" + basePath;
+    }
+    for (auto& partition : m_vFlashPartitions) {
+        if (partition == basePath) {
+            m_sCurrentPartition = partition;
+            return true;
+        }
+    }
+    return false;
+}
+const std::vector<std::string>& UnifiedStorage::getPartitions() {
+    return m_vFlashPartitions;
+}
 void UnifiedStorage::saveFileFlash(const char* filename, const char* content, int len, bool binary, bool append) {
     if (!m_bFlashInited) {
-        LOGI("save failed flash not inited yet\n");
+        LOGW("save failed flash not inited yet\n");
         return;
     }
     char path[PATH_MAX] = {0};
-    sprintf(path, "%s/%s", FLASHPATH, filename);
+    sprintf(path, "%s/%s", m_sCurrentPartition.c_str(), filename);
     saveFile(path, content, len, binary, append);
 }
 FILE* UnifiedStorage::openFileFlash(const char* filename, bool binary) {
     if (!m_bFlashInited) {
-        LOGI("open failed flash not inited yet\n");
+        LOGW("open failed flash not inited yet\n");
         return NULL;
     }
     char path[PATH_MAX] = {0};
-    sprintf(path, "%s/%s", FLASHPATH, filename);
+    sprintf(path, "%s/%s", m_sCurrentPartition.c_str(), filename);
     return fopen(path, binary?"rb":"r");
 }
 uint32_t UnifiedStorage::getFlashFreeSpace(const char* partition_label) {
