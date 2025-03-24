@@ -2,20 +2,54 @@
 #define _HELPER_H_
 #include <string>
 #include <vector>
-#include <freertos/FreeRTOSConfig.h>
+#include <unordered_map>
 #include <time.h>
-#include "esp_heap_caps.h"
-#include "esp_timer.h"
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <ctime>
 
-#define BENCHMARK(code)                     \
-    int64_t startTime##__LINE__ = micros(); \
-    code;                                   \
-    int64_t endTime##__LINE__ = micros();   \
-    printf("file:%s line[%d]: %ld ms (%ld us)\n", __FILE__, __LINE__, uint32_t(endTime##__LINE__ - startTime##__LINE__)/1000, uint32_t(endTime##__LINE__ - startTime##__LINE__));
+static int64_t _startTime, _endTime;
+static std::unordered_map<std::string, uint32_t> _classifiedStatistics;
+struct TimeStack {
+    std::string name;
+    int64_t    time;  
+};
+static TimeStack _timerStack[32]; static int _timerStackDepth = 0;
+
+
+#define BENCHMARK(code)    \
+    _startTime = micros(); \
+    code;                  \
+    _endTime = micros();   \
+    printf("file:%s line[%d]: %ld ms (%ld us)\n", __FILE__, __LINE__, uint32_t(_endTime - _startTime)/1000, uint32_t(_endTime - _startTime));
+
+#define BENCHMARK_CLASS_START(cls)  \
+    _startTime = micros();          \
+    assert(_timerStackDepth < 32);  \
+    for (int i = _timerStackDepth-1; i >= 0; i--) { \
+        if (_timerStack[i].name == cls) { \
+            for (int j = i; j < _timerStackDepth; j++) \
+                _classifiedStatistics[_timerStack[j].name] += _startTime - _timerStack[j].time; \
+            _timerStackDepth = i; \
+            break; \
+        } \
+    } \
+    _timerStack[_timerStackDepth++] = {cls, _startTime};
+
+
+#define BENCHMARK_CLASS_END(cls)    \
+    _endTime = micros();   \
+    _classifiedStatistics[cls] += _endTime - _timerStack[--_timerStackDepth].time;
+
+#define BENCHMARK_CLASS_RESET \
+    _classifiedStatistics.clear(); \
+    _timerStackDepth = 0;
+
+#define BENCHMARK_CLASS_REPORT \
+    for (auto it = _classifiedStatistics.begin(); it != _classifiedStatistics.end(); it++) \
+        printf("%s: %ld ms (%ld us)\n", it->first.c_str(), uint32_t(it->second)/1000, uint32_t(it->second));
+
 
 #define MEMORY_REPORT memoryReport(__FILE__, __LINE__);
 
@@ -29,6 +63,9 @@ inline int getMainCoreId() {
     return 1;
 #endif
 }
+#ifndef portNUM_PROCESSORS
+#define portNUM_PROCESSORS 1
+#endif
 
 inline int getSubCoreId() {
     return (getMainCoreId() + 1) % portNUM_PROCESSORS;
@@ -42,21 +79,6 @@ inline std::vector<std::string> splitString(const std::string& str, const char* 
     }
     result.push_back(str.substr(start));
     return result;
-}
-inline uint32_t millis() {
-    return esp_timer_get_time() / 1000;
-}
-inline int64_t micros() {
-    return esp_timer_get_time();
-}
-inline void memoryReport(const char* file, int line) {
-    printf("<=====Memory report in %s:%d ======>\n", file, line);
-    auto size = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-    printf("Free internal heap: %d bytes\n", size);
-    size = heap_caps_get_free_size(MALLOC_CAP_DMA);
-    printf("Free dma heap: %d bytes\n", size);
-    size = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    printf("Free spiram heap: %d bytes\n\n", size);
 }
 
 inline time_t timeStringToTimestamp(const std::string& timeString) {
@@ -75,19 +97,12 @@ inline std::string timestampToTimeString(time_t timestamp) {
     ss << std::put_time(&tm, "%y:%m:%d %H:%M:%S");
     return ss.str();
 }
+// [JS_BINDING_BEGIN]
+uint32_t timeNow(int timeZone);
+// [JS_BINDING_END]
+extern "C" void memoryReport(const char* file, int line);
 
-inline void* psram_prefered_malloc(size_t size) {
-    void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
-    if (ptr)
-        return ptr; 
-    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
-}
-
-inline void* dma_prefered_malloc(size_t size) {
-    void* ptr = heap_caps_malloc(size, MALLOC_CAP_DMA);
-    if (ptr)
-        return ptr; 
-    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
-}
+extern "C" uint32_t millis();
+extern "C" int64_t micros();
 
 #endif

@@ -46,9 +46,9 @@ private:
 
 extern void LoadConfigFromBuffer(const char* filename,const char* buffer,unsigned int buffLen);
 extern const ItemTable* GetItemTable(const char* configName);
-extern const KeyPairs* GetKeyPairs(const char* configName,const char* categoryName,int lvl);
-extern const char* GetValue(const char* configName,const char* categoryName,int lvl,const char* key,bool bUseLevel0AsDefault = true);
-extern int GetItemLevelCount(const char* configName,const char* categoryName);
+extern const KeyPairs* GetKeyPairs(const char* configName,const char* itemId,int lvl);
+extern const char* GetValue(const char* configName,const char* itemId,int lvl,const char* key,bool bUseLevel0AsDefault = true);
+extern int GetItemLevelCount(const char* configName,const char* itemId);
 extern std::vector<std::string> GetItemNames(const char* configName);
 extern int GetGlobalValue(const char* name);
 

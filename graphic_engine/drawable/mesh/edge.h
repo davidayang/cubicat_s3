@@ -1,15 +1,30 @@
 #ifndef _EDGE_H_
 #define _EDGE_H_
 
+namespace cubicat {
+
+
 struct Edge {
-    float x;    // x坐标初始值位yMin处的x坐标
-    float dx;   // x坐标增量等同于 1 / slope
-    float yMin; // y坐标最小值
-    float yMax; // y坐标最大值
-    float u;    // yMin处的纹理坐标u
-    float v;    // yMin处的纹理坐标v
-    float du;   // 纹理坐标u增量
-    float dv;   // 纹理坐标v增量
+    float x;    // x pos at yMin
+    float dx;   // delta x equal to 1 / slope
+    float yMin; // 
+    float yMax; // 
+    float u;    // u at yMin (divided by w for 3D)
+    float v;    // v at yMin (divided by w  for 3D)
+    float du;   // delta u (divided by w  for 3D)
+    float dv;   // delta v (divided by w  for 3D)
+    float illum; // 
+    float dillum; // delta illum
+    float z;        // z depth
+    float dz;        // delta z
+    float w;        // homogeneous term
+    float dw;
+    inline void invalidate() {
+        yMin = 99999;
+        yMax = -99999;
+    }
 };
+
+}
 
 #endif

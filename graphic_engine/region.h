@@ -17,9 +17,9 @@ struct Region {
         w = 0;
         h = 0;
     }
-    void combine(const Region& other) {
+    const Region& combine(const Region& other) {
         if (other.w == 0 || other.h == 0)
-            return;
+            return *this;
         if (w == 0 && h == 0) {
             x = other.x;
             y = other.y;
@@ -35,6 +35,7 @@ struct Region {
             w = std::max(endx, otherEndx) - x;
             h = std::max(endy, otherEndy) - y;
         }
+        return *this;
     }
     bool operator==(const Region& other) const {
         return x == other.x && y == other.y && w == other.w && h == other.h;

@@ -13,6 +13,7 @@
 #include "component/rigidbody_component.h"
 #include "core/message/message_tube.h"
 #include "schedule_manager.h"
+#include "resource_manager.h"
 
 class EmbedGameEngine
 {
@@ -22,6 +23,7 @@ public:
     SceneManager* createSceneManager();
     TickManager* createTickManager();
     ScheduleManager* createScheduleManager();
+    ResourceManager* createResourceManager();
     // scene graph renderer
     // @param displayInterface draw interface
     Renderer* createRenderer(DisplayInterface* backBuffer);
@@ -32,8 +34,10 @@ public:
     TickManager* getTickManager() {return m_pTickMgr;}
     ScheduleManager* getScheduleManager() {return m_pScheduleMgr;}
     Renderer* getRenderer() {return m_pRenderer;}
+    ResourceManager* getResourceManager() {return m_pResourceManager;}
 private:
     SceneManager*                   m_pSceneMgr = nullptr;
+    ResourceManager*                m_pResourceManager = nullptr;
     TickManager*                    m_pTickMgr = nullptr;
     ScheduleManager*                m_pScheduleMgr = nullptr;
     Renderer*                       m_pRenderer = nullptr;

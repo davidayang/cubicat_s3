@@ -1,7 +1,9 @@
 #ifndef _TEXT_LABEL_H_
 #define _TEXT_LABEL_H_
 #include "widget.h"
-#include "../drawable/BMFont.h"
+#include "graphic_engine/drawable/bmfont.h"
+
+namespace cubicat {
 
 class TextLabel : public Widget {
 public:
@@ -13,7 +15,6 @@ public:
 
     void setText(const char* text);
     const std::string& getText(){ return m_Text; }
-    void setColor(uint16_t color);
 private:
     TextLabel(uint16_t width, uint16_t height, uint16_t color,const char* text, bool adaptiveSize);
     uint16_t        m_Color;
@@ -21,4 +22,5 @@ private:
     std::string          m_Text;
 };
 typedef SharedPtr<TextLabel> TextLabelPtr;
+}
 #endif

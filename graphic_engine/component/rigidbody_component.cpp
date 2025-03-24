@@ -1,10 +1,12 @@
 #include "rigidbody_component.h"
-#include "../node.h"
+#include "../node2d.h"
 #include <algorithm>
 #include <cmath>
 #include "../box2d-lite/World.h"
 #include "../definitions.h"
 #include "../math/vector3.h"
+
+using namespace cubicat;
 
 World* world = nullptr;
 OrientationListener oriListener;
@@ -22,19 +24,19 @@ RigidBodyComponent::~RigidBodyComponent() {
 }
 void RigidBodyComponent::onMessage(int id, const void* msg) {
     if (id == Msg_SetPos) {
-        const Vector2* pos = (Vector2*)msg;
+        const Vector2f* pos = (Vector2f*)msg;
         m_pRigidBody->position.x = pos->x;
         m_pRigidBody->position.y = pos->y;
     } else if (id == Msg_MoveTo) {
         MoveToData* move = (MoveToData*)msg;
-        moveTo(Vector2(move->x, move->y), move->time);
+        moveTo(Vector2f(move->x, move->y), move->time);
     }
 }
 void RigidBodyComponent::onAttachTarget(Node* target) {
     Component::onAttachTarget(target);
     m_pRigidBody = new IdentifiedBody();
     if (world) {
-        const Vector2& pos = target->getWorldPosition();
+        const Vector3f& pos = target->getWorldPosition();
         m_pRigidBody->id = target->getId();
         if (m_bFixed) {
             m_pRigidBody->Set(Vec2(m_size.x, m_size.y), FLT_MAX);
@@ -55,11 +57,11 @@ void RigidBodyComponent::setGravityDir(float dirx, float diry) {
         world->gravity.y = diry;
     }
 }
-Vector2 RigidBodyComponent::getGravityDir() {
+Vector2f RigidBodyComponent::getGravityDir() {
     if (world) {
-        return Vector2(world->gravity.x, world->gravity.y);
+        return Vector2f(world->gravity.x, world->gravity.y);
     }
-    return Vector2();
+    return Vector2f();
 }
 #define Iterations 6
 void RigidBodyComponent::initWorld() {
@@ -80,21 +82,21 @@ void RigidBodyComponent::update(Node* target, float deltaTime) {
             m_fMoveTime = 0;
         }
     }
-    target->setPosition(m_pRigidBody->position.x, m_pRigidBody->position.y);
+    target->cast<Node2D>()->setPosition(m_pRigidBody->position.x, m_pRigidBody->position.y);
     if (m_bAdaptiveSize) {
-        auto aabb = target->getAABB();
+        auto aabb = target->cast<Node2D>()->getAABB();
         if (aabb.w > 0 && aabb.h > 0 && m_pRigidBody->width.x != aabb.w && m_pRigidBody->width.y != aabb.h) {
             m_pRigidBody->SetWidth(Vec2(aabb.w,aabb.h));
         }
     }
 }
-void RigidBodyComponent::moveTo(const Vector2& pos,float time) {
+void RigidBodyComponent::moveTo(const Vector2f& pos,float time) {
     m_fMoveTimeElapse = 0;
     m_fMoveTime = time;
-    m_moveStart = Vector2(m_pRigidBody->position.x, m_pRigidBody->position.y);
+    m_moveStart = Vector2f(m_pRigidBody->position.x, m_pRigidBody->position.y);
     m_moveDest = pos;
 }
-void RigidBodyComponent::velocity(const Vector2& dir, float speed) {
+void RigidBodyComponent::velocity(const Vector2f& dir, float speed) {
     m_pRigidBody->velocity.x = dir.x * speed;
     m_pRigidBody->velocity.y = dir.y * speed;
 }
@@ -131,11 +133,11 @@ OrientationListener::OrientationListener() {
 }
 void OrientationListener::onMessage(int id, const void* msg) {
     if (id == Msg_XYAxisAngle) {
-        const Vector2* xyAxis = (const Vector2*)msg;
-        float rad = (-xyAxis->y + 90) * ANGLE_2_RAD;
+        const Vector2f* xyAxis = (const Vector2f*)msg;
+        float rad = ANGLE_2_RAD(-xyAxis->y + 90);
         float x = cosf(rad);
         float y = sinf(rad);
-        Vector2 dir(x, y);
+        Vector2f dir(x, y);
         dir.normalize();
         RigidBodyComponent::setGravityDir(dir.x * G_VALUE, dir.y * G_VALUE);
     }

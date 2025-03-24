@@ -3,6 +3,9 @@
 #include "drawable.h"
 #include "font.h"
 
+namespace cubicat
+{
+
 class BMFont : public Drawable
 {
 public:
@@ -10,17 +13,18 @@ public:
     static void setFontData(FontData data) { m_sFontData = data; }
     static const FontData& getFontData() { return m_sFontData; }
     static uint8_t getFontSize() { return m_sFontData.fontSize; }
-    static Vector2 calculateUTFStringRect(const char* text);
-    static SharedPtr<BMFont> create(const Vector2& size,const char* text, uint16_t color = 0x0) {
+    static Vector2f calculateUTFStringRect(const char* text);
+    static SharedPtr<BMFont> create(const Vector2us& size,const char* text, uint16_t color = 0x0) {
         return SharedPtr<BMFont>(NEW BMFont(size, text, color));
     }
     ~BMFont();
-    const void* getTextureData() override { return m_pData; }
+
     void setColor(uint16_t color);
 private:
-    BMFont(const Vector2& size,const char* text, uint16_t color = 0x0);
+    BMFont(const Vector2us& size,const char* text, uint16_t color = 0x0);
     uint16_t*       m_pData;
     static FontData m_sFontData;
-    Vector2         m_cursorPos;
+    Vector2f        m_cursorPos;
 };
+} // namespace cubicat
 #endif

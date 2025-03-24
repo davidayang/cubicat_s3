@@ -1,7 +1,15 @@
+/*
+* @author       Isaac
+* @date         2024-09-22
+* @license      MIT License
+* @copyright    Copyright (c) 2024 Deer Valley
+*/
 #ifndef _MATRIX3_H_
 #define _MATRIX3_H_
 #include <string.h>
 #include "vector2.h"
+
+namespace cubicat {
 
 struct Matrix2
 {
@@ -31,11 +39,13 @@ struct Matrix2
     }
 };
 
-inline Vector2 operator*(const Vector2& v, const Matrix2& mat)
+inline Vector2f operator*(const Vector2f& v, const Matrix2& mat)
 {
-    Vector2 vec;
+    Vector2f vec;
     vec.x = v.x*mat.m[0][0] + v.y*mat.m[1][0];
     vec.y = v.x*mat.m[0][1] + v.y*mat.m[1][1];
     return vec;
+}
+
 }
 #endif

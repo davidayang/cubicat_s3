@@ -1,5 +1,6 @@
 #include "widget.h"
 
+using namespace cubicat;
 Widget::Widget(uint16_t width, uint16_t height)
  : m_width(width), m_height(height), m_eAlignment(Alignment::NONE) {
 }
@@ -11,7 +12,10 @@ void Widget::align() {
     if (m_eAlignment == NONE || !getParent() || !getParent()->ofA<Widget>()) {
         return;
     }
-    Widget* parent = static_cast<Widget*>(getParent());
+    Widget* parent = getParent()->cast<Widget>();
+    if (!parent) {
+        return;
+    }
     if (m_eAlignment == LEFT) {
         setPosition(0, getPosition().y);
     } else if (m_eAlignment == RIGHT) {

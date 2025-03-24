@@ -1,6 +1,9 @@
 #include "font.h"
 #include <string>
 #include "gb2312font_20.h"
+#include "utils/helper.h"
+#include <algorithm>
+#include <cmath>
 
 FontData DefaultFontData = {
     .glyphData = GB2312_GlyphData_20,
@@ -68,4 +71,26 @@ std::vector<std::string> splitUTF8(const char* s) {
     }
 
     return characters;
+}
+void calculateUTFStringSize(const char* text, uint16_t* width, uint16_t* height) {
+    const uint16_t SingleGlyphDataLen = 4 + ceil(DefaultFontData.fontSize * DefaultFontData.fontSize / 8.0f);
+    auto lines = splitString(text, "\n");
+    *height = (DefaultFontData.fontSize * 1.5) * lines.size();//加半个字模高度，为了不同字符的高低对齐
+    *width = 0;
+    for (auto& line : lines) {
+        auto characters = splitUTF8(line.c_str());
+        uint16_t lineWidth = 0;
+        for (auto& character : characters) {
+            int index = getCharIndex((const char*)DefaultFontData.charSet, character.c_str());
+            if (index >= 0) {
+                auto ptr = DefaultFontData.glyphData + index * SingleGlyphDataLen;
+                // 字模数据前4字节为字模bbox数据
+                uint8_t data[4] = { 0 };
+                memcpy(data, (uint8_t*)ptr, 4);
+                auto glyphWidth = data[2] - data[0];
+                lineWidth += glyphWidth;
+            }
+        }
+        *width = std::max(*width, lineWidth);
+    }
 }

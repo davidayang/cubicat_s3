@@ -31,4 +31,4 @@ We welcome any suggestions and feedback for this project.
   | spiffs   | data | spiffs   | 0x810000 | 0x50000 |
   | coredump | data | coredump | 0xD10000 | 0x10000 |
 * ##### ESP System Settings
-  ###### \> Main task stack size : 8192
+  ###### \> Main task stack size : 8192 (16384 is recommend)

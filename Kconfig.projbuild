@@ -16,5 +16,11 @@ menu "Cubicat Configuration"
         default y
         help
             Render texture use bilinear interpolation if necessary. Get better result but affects drawing efficiency significantly
+
+    config JAVASCRIPT_ENABLE
+        bool "Enable JavaScript"
+        default y
+        help
+            Enable JavaScript
         
 endmenu

@@ -1,6 +1,8 @@
 #include "message_tube.h"
 #include <algorithm>
 
+using namespace cubicat;
+
 MessageTube* g_MsgTube = new MessageTube();
 // ====dispatcher====
 void MessageDispatcher::sendGlobalMessage(int id, const void* msg) {

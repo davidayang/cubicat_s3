@@ -48,3 +48,9 @@ void wavHeader(uint8_t* header, int wavSize)
     header[42] = (uint8_t)((wavSize >> 16) & 0xFF);
     header[43] = (uint8_t)((wavSize >> 24) & 0xFF);
 }
+
+uint32_t timeNow(int timeZone) {
+    time_t now;
+    time(&now);
+    return (uint32_t)now + timeZone * 3600;
+}

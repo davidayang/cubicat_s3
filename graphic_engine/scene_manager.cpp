@@ -1,76 +1,129 @@
 #include "scene_manager.h"
 #include <map>
-#include "drawable/sprite.h"
-#include "drawable/sprite_sheet.h"
 #include "drawable/bmfont.h"
 #include "drawable/gb2312font_20.h"
+#include "drawable/quad.h"
+#include "component/sheet_animation_component.h"
 
-SceneManager* SceneManager::m_sInstance = nullptr;
+using namespace cubicat;
+
+SceneManager *SceneManager::m_sInstance = nullptr;
 SceneManager::SceneManager()
 {
-    m_pRoot =  Node::create("root");
+    m_pBackgroud2D = Node2D::create("background2d");
+    m_pRoot2D = Node2D::create("root2d");
 }
-SceneManager::~SceneManager() {
+SceneManager::~SceneManager()
+{
 }
-WidgetPtr SceneManager::createUICanvas(uint16_t width, uint16_t height) {
+WidgetPtr SceneManager::createUICanvas(uint16_t width, uint16_t height)
+{
     m_pUICanvas = Widget::create(width, height);
     m_pUICanvas->setName("canvas");
     return m_pUICanvas;
 }
-NodePtr SceneManager::createNode(const char* name) {
-    NodePtr node = Node::create(name);
-    node->setParent(m_pRoot);
-    m_NodeMap[node->getId()] = node;
+void SceneManager::addNode(NodePtr node)
+{
+    if (node) {
+        if (!node->getParent()) {
+            if (node->cast<Node2D>()) {
+                node->setParent(m_pRoot2D);
+            }
+        }
+        m_nodeMap[node->getId()] = node;
+        if (node->getName().size()) {
+            m_nameIdMap[node->getName()] = node->getId();
+        }
+    }
+}
+Node2DPtr SceneManager::createNode2D(Layer2D layer)
+{
+    Node2DPtr node = Node2D::create();
+    addNode(node);
+    if (layer == BACKGROUND) {
+        node->setParent(m_pBackgroud2D);
+    }
     return node;
 }
-NodePtr SceneManager::createSpriteNode(const ImageData& img,const Vector2& pivot,const char* name) {
-    DrawablePtr sprite;
-    if (img.col > 1 || img.row > 1)
-        sprite = SpriteSheet::create(img.width, img.height, img.data, img.col, img.row, img.hasMask, img.maskColor, img.palette, img.bpp);
-    else 
-        sprite = Sprite::create(img.width, img.height, img.data, img.hasMask, img.maskColor, img.palette, img.bpp);
+
+Node2DPtr SceneManager::createSpriteNode(const ImageData &img, const Vector2f &pivot, Layer2D layer)
+{
+    DrawablePtr sprite = Drawable::create();
+    auto tex = Texture::create(img.width, img.height, img.data, false, img.col, img.row, img.palette, img.bpp, img.hasAlpha);
+    sprite->getMaterial()->setTexture(tex);
     sprite->setPivot(pivot.x, pivot.y);
-    auto node = createNode(name);
+    auto node = createNode2D(layer);
     node->attachDrawable(sprite);
     return node;
 }
-NodePtr SceneManager::createPloygon(const ImageData& img,const Vector2& pivot,const char* name) {
-    auto texture = Texture::create(img.width, img.height, img.data, img.col, img.row, img.palette, img.bpp, img.hasAlpha);
-    auto polygon = Polygon::create(texture->getFrameWidth(), texture->getFrameHeight(), img.hasMask, img.maskColor);
-    polygon->setPivot(pivot.x, pivot.y);
-    polygon->setTexture(texture);
-    auto node = createNode(name);
-    node->attachDrawable(polygon);
+Node2DPtr SceneManager::createSpriteNode(TexturePtr texture,const Vector2f& pivot, Layer2D layer) {
+    DrawablePtr sprite = Drawable::create();
+    sprite->getMaterial()->setTexture(texture);
+    sprite->setPivot(pivot.x, pivot.y);
+    auto node = createNode2D(layer);
+    node->attachDrawable(sprite);
+    if (texture && texture->getFrameCount() > 1) {
+        auto animSheet = SheetAnimationComponent::create();
+        node->addComponent(animSheet);
+    }
     return node;
 }
-NodePtr SceneManager::getObjectById(unsigned int id) {
-    auto objItr = m_NodeMap.find(id);
-    if (objItr != m_NodeMap.end()) {
+Node2DPtr SceneManager::createQuad(const ImageData &img, const Vector2f &pivot, Layer2D layer)
+{
+    auto texture = Texture::create(img.width, img.height, img.data, false, img.col, img.row, img.palette, img.bpp, img.hasAlpha);
+    return createQuad(texture, pivot, layer);
+}
+
+Node2DPtr SceneManager::createQuad(TexturePtr texture, const Vector2f &pivot, Layer2D layer)
+{
+    auto quad = Quad::create(texture->getTextureSize().x, texture->getTextureSize().y);
+    quad->setPivot(pivot.x, pivot.y);
+    quad->getMaterial()->setTexture(texture);
+    auto node = createNode2D(layer);
+    node->attachDrawable(quad);
+    return node;
+}
+
+NodePtr SceneManager::getObjectById(uint32_t id)
+{
+    auto objItr = m_nodeMap.find(id);
+    if (objItr != m_nodeMap.end())
+    {
         return objItr->second;
     }
     return NodePtr(nullptr);
 }
-void SceneManager::deleteObject(unsigned int id) {
-    auto objItr = m_NodeMap.find(id);
-    if (objItr != m_NodeMap.end()) {
+NodePtr SceneManager::getObjectByName(const string &name)
+{
+    auto objItr = m_nameIdMap.find(name);
+    if (objItr != m_nameIdMap.end())
+    {
+        return getObjectById(objItr->second);
+    }
+    return NodePtr(nullptr);
+}
+void SceneManager::deleteObject(uint32_t id)
+{
+    auto objItr = m_nodeMap.find(id);
+    if (objItr != m_nodeMap.end())
+    {
         objItr->second->setParent(nullptr);
-        m_NodeMap.erase(objItr);
+        m_nodeMap.erase(objItr);
+        m_nameIdMap.erase(objItr->second->getName());
     }
 }
 
-void SceneManager::update(float deltaTime) {
+void SceneManager::update(float deltaTime)
+{
     m_drawables.clear();
     // update scene graph
-    m_pRoot->update(deltaTime);
+    m_pBackgroud2D->update(deltaTime, false);
+    m_pRoot2D->update(deltaTime, false);
     if (m_pUICanvas)
-        m_pUICanvas->update(deltaTime);
-    // update and collect all drawables
-    m_pRoot->findDrawables(m_drawables);
-    if (m_pUICanvas) {
+        m_pUICanvas->update(deltaTime, false);
+    // find all 2d drawables
+    m_pBackgroud2D->findDrawables(m_drawables);
+    m_pRoot2D->findDrawables(m_drawables);
+    if (m_pUICanvas)
         m_pUICanvas->findDrawables(m_drawables);
-    }
-}
-
-void SceneManager::setCameraPos(const Vector2& pos) {
-    m_pRoot->setPosition(-pos);
 }

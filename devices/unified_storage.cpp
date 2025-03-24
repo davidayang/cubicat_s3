@@ -51,8 +51,8 @@ void UnifiedStorage::init(bool sd)
                 } else {
                     sprintf(basePath, "/spiffs%d", spiffsCount);
                 }
-                if (m_sCurrentPartition.empty()) {
-                    m_sCurrentPartition = basePath;
+                if (m_currentPartition.empty()) {
+                    m_currentPartition = basePath;
                 }
                 esp_vfs_spiffs_conf_t conf = {
                     .base_path = basePath,
@@ -62,7 +62,7 @@ void UnifiedStorage::init(bool sd)
                 };
                 ret = esp_vfs_spiffs_register(&conf);
                 if (ret != ESP_OK) {
-                    printf("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
+                    LOGE("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
                     m_bFlashInited = false;
                     break;
                 }
@@ -215,7 +215,7 @@ FILE* UnifiedStorage::openFileSD(const char* filename, bool binary) {
 }
 bool UnifiedStorage::partitionSelect(const char* label) {
     if (!m_bFlashInited) {
-        LOGI("select partition failed flash not inited yet\n");
+        LOGW("select partition failed flash not inited yet\n");
         return false;
     }
     std::string basePath(label);   
@@ -224,11 +224,14 @@ bool UnifiedStorage::partitionSelect(const char* label) {
     }
     for (auto& partition : m_vFlashPartitions) {
         if (partition == basePath) {
-            m_sCurrentPartition = partition;
+            m_currentPartition = partition;
             return true;
         }
     }
     return false;
+}
+std::string UnifiedStorage::getActivePartition() {
+    return m_currentPartition;
 }
 const std::vector<std::string>& UnifiedStorage::getPartitions() {
     return m_vFlashPartitions;
@@ -239,7 +242,7 @@ void UnifiedStorage::saveFileFlash(const char* filename, const char* content, in
         return;
     }
     char path[PATH_MAX] = {0};
-    sprintf(path, "%s/%s", m_sCurrentPartition.c_str(), filename);
+    sprintf(path, "%s/%s", m_currentPartition.c_str(), filename);
     saveFile(path, content, len, binary, append);
 }
 FILE* UnifiedStorage::openFileFlash(const char* filename, bool binary) {
@@ -247,9 +250,21 @@ FILE* UnifiedStorage::openFileFlash(const char* filename, bool binary) {
         LOGW("open failed flash not inited yet\n");
         return NULL;
     }
+    if (filename == nullptr) {
+        LOGW("filename is null\n");
+        return NULL;
+    }
     char path[PATH_MAX] = {0};
-    sprintf(path, "%s/%s", m_sCurrentPartition.c_str(), filename);
-    return fopen(path, binary?"rb":"r");
+    if (filename[0] != '/') {
+        sprintf(path, "%s/%s", m_currentPartition.c_str(), filename);
+    } else {
+        sprintf(path, "%s", filename);
+    }
+    FILE* f = fopen(path, binary?"rb":"r");
+    if (!f) {
+        LOGE("open file %s failed\n", path);
+    }
+    return f;
 }
 uint32_t UnifiedStorage::getFlashFreeSpace(const char* partition_label) {
     size_t totalBytes = 0;

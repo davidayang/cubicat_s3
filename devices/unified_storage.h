@@ -2,7 +2,6 @@
 #define _UNIFIED_STORAGE_H_
 
 #include "core/memory_object.h"
-#include "core/macros.h"
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -15,7 +14,7 @@ public:
     ~UnifiedStorage();
 
     // CAN NOT use MICPHONE and SD simultaneously
-    void init(bool sd = false);
+    void init(bool sdEnable);
     void deinit();
     bool setString(const char* key, const char* value);
     bool setInt(const char* key, int value);
@@ -27,6 +26,7 @@ public:
     FILE* openFileSD(const char* filename, bool binary = true);
     bool partitionSelect(const char* label);
     const std::vector<std::string>& getPartitions();
+    std::string getActivePartition();
     void saveFileFlash(const char* filename, const char* content, int len, bool binary = true, bool append = false);
     FILE* openFileFlash(const char* filename, bool binary = true);
     uint32_t getFlashFreeSpace(const char* partition_label = "spiffs");
@@ -38,7 +38,7 @@ private:
     bool m_bSDInited = false;
     bool m_bFlashInited = false;
     std::vector<std::string> m_vFlashPartitions;
-    std::string m_sCurrentPartition;
+    std::string m_currentPartition;
 };
 
 

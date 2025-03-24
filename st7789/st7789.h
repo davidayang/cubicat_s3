@@ -1,7 +1,6 @@
 #ifndef _ST7789_H_
 #define _ST7789_H_
 
-#include "driver/spi_master.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16,6 +15,8 @@ typedef enum {
 	SCROLL_UP = 4,
 } SCROLL_TYPE_t;
 
+#define SPIHandle void*
+
 typedef struct {
 	uint16_t _width;
 	uint16_t _height;
@@ -28,12 +29,13 @@ typedef struct {
 	uint16_t _font_underline_color;
 	int16_t _dc;
 	int16_t _bl;
-	spi_device_handle_t _SPIHandle;
+	SPIHandle _SPIHandle;
 } TFT_t;
+
 
 void spi_clock_speed(int speed);
 void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t GPIO_CS, int16_t GPIO_DC, int16_t GPIO_RESET, int16_t GPIO_BL);
-bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* Data, size_t DataLength);
+bool spi_master_write_byte(SPIHandle handle, const uint8_t* Data, size_t DataLength);
 bool spi_master_write_command(TFT_t * dev, uint8_t cmd);
 bool spi_master_write_data_byte(TFT_t * dev, uint8_t data);
 bool spi_master_write_data_word(TFT_t * dev, uint16_t data);

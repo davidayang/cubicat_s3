@@ -10,6 +10,7 @@
 class TouchListener {
 public:
     virtual void onTouch(const TOUCHINFO& info) = 0;
+    virtual void onRelease(const TOUCHINFO& info) = 0;
 };
 
 #define rgb565(r, g, b) (((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
@@ -66,17 +67,20 @@ public:
     // draw primitive
     // all primitive draw directly draw to back buffer, thus coordinate is relative to view port, which means origin point (0,0)
     // is the top left corner of view port
+    // [JS_BINDING_BEGIN]
     void drawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color, uint16_t thickness = 1);
-    void drawRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, uint16_t thickness = 1);
-    void drawRoundRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, uint16_t thickness = 1, uint16_t cornerRadius = 2);
+    void drawRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, uint16_t thickness = 1);   
     void fillRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color);
     void fillRoundRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, uint16_t cornerRadius = 2);
     void drawCircle(int16_t x, int16_t y, uint16_t radius, uint16_t color, uint16_t thickness = 1);
     void fillCircle(int16_t x, int16_t y, uint16_t radius, uint16_t color);
     void fillScreen(uint16_t color);
+    // [JS_BINDING_END]
     void drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgHeight, uint16_t* img);
+    void drawRoundRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, uint16_t thickness = 1, uint16_t cornerRadius = 2);
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
-    void drawText(uint16_t x, uint16_t y, const char* text, uint16_t color, uint8_t lineSpacing = 2, const FontData& fontData = DefaultFontData);
+    DirtyWindow drawText(uint16_t x, uint16_t y, const char* text, uint16_t color, uint8_t lineSpacing = 2, const FontData& fontData = DefaultFontData);
+    DirtyWindow drawText(uint16_t x, uint16_t y, const char* text, uint16_t color, uint16_t maxWidth, uint8_t lineSpacing, const FontData& fontData = DefaultFontData);
 #endif
 protected:
     Display();
@@ -97,6 +101,7 @@ protected:
     bool                m_bDoubleBuffering = false;
     DirtyWindow         m_dirtyWindow;
     TouchListener*      m_pTouchListener = nullptr;
+    bool                m_bTouched = false;
     SemaphoreHandle_t   m_bufferMutex = nullptr;
     uint16_t            m_backgroundColor = 0;
 };

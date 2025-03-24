@@ -1,7 +1,6 @@
 #include "embed_game_engine.h"
 #include "component/rigidbody_component.h"
 #include "utils/helper.h"
-#include "freertos/freeRTOS.h"
 
 uint16_t counter = 0;
 uint32_t timer0 = 0;
@@ -20,6 +19,8 @@ EmbedGameEngine::~EmbedGameEngine() {
         delete m_pScheduleMgr;
     if (m_pRenderer)
         delete m_pRenderer;
+    if (m_pResourceManager)
+        delete m_pResourceManager;
 }
 SceneManager* EmbedGameEngine::createSceneManager() {
     if (m_pSceneMgr)
@@ -44,6 +45,12 @@ Renderer* EmbedGameEngine::createRenderer(DisplayInterface* backBuffer) {
         return m_pRenderer;
     m_pRenderer = new Renderer(backBuffer);
     return m_pRenderer;
+}
+ResourceManager* EmbedGameEngine::createResourceManager() {
+    if (m_pResourceManager)
+        return m_pResourceManager;
+    m_pResourceManager = new ResourceManager();
+    return m_pResourceManager;
 }
 void EmbedGameEngine::update() {
     if (timer0 == 0) {

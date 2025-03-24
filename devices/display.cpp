@@ -1,10 +1,9 @@
 #include "display.h"
-#include "esp_psram.h"
-#include "esp_heap_caps.h"
 #include "utils/logger.h"
 #include "utils/helper.h"
 #include <cmath>
 #include <string.h>
+#include "core/memory_allocator.h"
 
 QueueHandle_t swapQueue;
 volatile bool g_bPresented = true;
@@ -125,9 +124,15 @@ bool Display::isTouched() {
     return gpio_get_level((gpio_num_t)m_interruptGPIO) == 0;
 }
 void Display::touchLoop() {
-    if (m_pTouchListener && isTouched()) {
+    if (m_pTouchListener) {
         auto& info = getTouchInfo();
-        m_pTouchListener->onTouch(info);
+        if (info.count) {
+            m_pTouchListener->onTouch(info);
+            m_bTouched = true;
+        }else if (m_bTouched) {
+            m_pTouchListener->onRelease(info);
+            m_bTouched = false;
+        }
     }
 }
 
@@ -135,8 +140,8 @@ void Display::allocBackBuffer() {
     if (m_pBackBuffer)
         return;
     uint32_t size = m_width * m_height * sizeof(uint16_t);
-    if (esp_psram_init()) {
-        m_pBackBuffer = (uint16_t*)heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+    if (psram_init()) {
+        m_pBackBuffer = (uint16_t*)psram_malloc(size);
         if (!m_pBackBuffer)
             m_bDoubleBuffering = false;
     } else {
@@ -148,7 +153,7 @@ void Display::allocBackBuffer() {
     memset(m_pBackBuffer,0, size);
 #ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
-        m_pFrontBuffer = (uint16_t*)heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
+        m_pFrontBuffer = (uint16_t*)psram_prefered_malloc(size);
         if (m_pFrontBuffer)
             memset(m_pFrontBuffer,0, size);
         else
@@ -405,14 +410,17 @@ void Display::drawImage(uint16_t x, uint16_t y, uint16_t imgWidth, uint16_t imgH
     }
 }
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
-void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t color, uint8_t lineSpacing, const FontData& fontData) {
+DirtyWindow Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t color, uint8_t lineSpacing, const FontData& fontData) {
+    return drawText(xs, ys, text, color, m_width, lineSpacing, fontData);
+}
+DirtyWindow Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t color, uint16_t maxWidth, uint8_t lineSpacing, const FontData& fontData) {
     int16_t cursorPosX = xs;
     int16_t cursorPosY = ys;
     auto characters = splitUTF8(text);
     LOCK
     // single glyph data len = 4 byte bbox + glyph width * glyph height / 8 (1 bit per pixel , 8 pixels for 1 byte) 
     const uint16_t SingleGlyphDataLen = 4 + ceil(fontData.fontSize * fontData.fontSize / 8.0f);
-    int16_t maxCursorY = 0;
+    int16_t maxCursorY = 0, maxCursorX = 0;
     for (auto& character : characters) {
         uint8_t glyphWidth = fontData.fontSize;
         int index = getCharIndex((const char*)fontData.charSet, character.c_str());
@@ -447,11 +455,15 @@ void Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16_t colo
                 maxCursorY = curEndY;
         }
         cursorPosX += glyphWidth;
-        if (character == "\n") {
+        if (cursorPosX > maxCursorX)
+            maxCursorX = cursorPosX;
+        if (character == "\n" || cursorPosX >= maxWidth) {
             cursorPosX = xs;
             cursorPosY += fontData.fontSize + lineSpacing;
         }
     }
-    m_dirtyWindow.combine({ (int16_t)xs, (int16_t)ys, cursorPosX, maxCursorY});
+    DirtyWindow dw = { (int16_t)xs, (int16_t)ys, maxCursorX, maxCursorY };
+    m_dirtyWindow.combine(dw);
+    return dw;
 }
 #endif

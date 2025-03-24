@@ -9,6 +9,8 @@
 #define Msg_SetPos 6
 #define Msg_MoveTo 7
 #define Msg_MountingPointPos 8
+#define Msg_StopAnim 9
+#define Msg_StartAnim 10
 #define CUSTOM_MSG_BEGIN 100
 
 

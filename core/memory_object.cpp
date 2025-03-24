@@ -1,7 +1,9 @@
 #include "memory_object.h"
 #include "memory_pool.h"
+#include "memory_allocator.h"
 
-#define USE_MEMORY_POOL 1
+// 内存池存在bug暂时不使用这个内存池
+#define USE_MEMORY_POOL 0
 
 #if USE_MEMORY_POOL
 MemoryPool *g_memoryPool32 = new MemoryPool(32, 128);  // 4k
@@ -9,6 +11,7 @@ MemoryPool *g_memoryPool64 = new MemoryPool(64, 128);  // 8k
 MemoryPool *g_memoryPool128 = new MemoryPool(128, 64); // 8k
 MemoryPool *g_memoryPool256 = new MemoryPool(256, 32); // 8k
 MemoryPool *g_memoryPool512 = new MemoryPool(512, 16); // 8k
+MemoryPool *g_memoryPool1024 = new MemoryPool(1024, 2); // 2k
 
 #define SELECT_MEMORY_POOL(mallocSize) \
     int blockSize = mallocSize + sizeof(size_t);                   \
@@ -17,7 +20,8 @@ MemoryPool *g_memoryPool512 = new MemoryPool(512, 16); // 8k
     else if (blockSize <= 64) { memoryPool = g_memoryPool64; }     \
     else if (blockSize <= 128) { memoryPool = g_memoryPool128; }   \
     else if (blockSize <= 256) { memoryPool = g_memoryPool256; }   \
-    else { memoryPool = g_memoryPool512; }
+    else if (blockSize <= 512) { memoryPool = g_memoryPool512; }    \
+    else { memoryPool = g_memoryPool1024; }
     
 #endif
 
@@ -29,12 +33,12 @@ void *MemoryObject::operator new(size_t mallocSize)
     void* ptr = memoryPool->allocate(mallocSize);
     return ptr;
 #else
-    return malloc(mallocSize);
+    return psram_prefered_malloc(mallocSize);
 #endif
 }
 void *MemoryObject::operator new[](size_t mallocSize)
 {
-    return malloc(mallocSize);
+    return psram_prefered_malloc(mallocSize);
 }
 void *MemoryObject::operator new(size_t mallocSize, const char *file, int line)
 {
@@ -46,12 +50,12 @@ void *MemoryObject::operator new(size_t mallocSize, const char *file, int line)
 #endif
     return ptr;
 #else
-    return malloc(mallocSize);
+    return psram_prefered_malloc(mallocSize);
 #endif
 }
 void *MemoryObject::operator new[](size_t mallocSize, const char *file, int line)
 {
-    return malloc(mallocSize);
+    return psram_prefered_malloc(mallocSize);
 }
 void MemoryObject::operator delete(void *ptr)
 {

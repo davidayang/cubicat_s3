@@ -220,17 +220,17 @@ const ItemTable* GetItemTable(const char* configName)
     else
         return NULL;
 }
-const KeyPairs* GetKeyPairs(const char* configName,const char* categoryName, int lvl)
+const KeyPairs* GetKeyPairs(const char* configName,const char* itemId, int lvl)
 {
     const ItemTable* pTable = GetItemTable(configName);
     if (pTable)
-        return pTable->GetKeyPairsByLevel(categoryName, lvl);
+        return pTable->GetKeyPairsByLevel(itemId, lvl);
     else
         return NULL;
 }
-const char* GetValue(const char* configName,const char* categoryName,int lvl,const char* attributeName,bool bUseLevel0AsDefault)
+const char* GetValue(const char* configName,const char* itemId,int lvl,const char* attributeName,bool bUseLevel0AsDefault)
 {
-    const KeyPairs* kp = GetKeyPairs(configName, categoryName, lvl);
+    const KeyPairs* kp = GetKeyPairs(configName, itemId, lvl);
     if (kp)
     {
         const char* val = kp->GetValue(attributeName);
@@ -238,18 +238,18 @@ const char* GetValue(const char* configName,const char* categoryName,int lvl,con
             return val;
         if (bUseLevel0AsDefault)
         {
-            kp = GetKeyPairs(configName, categoryName, 1);
+            kp = GetKeyPairs(configName, itemId, 1);
             if (kp)
                 return kp->GetValue(attributeName);
         }
     }
     return NULL;
 }
-int GetItemLevelCount(const char* configName,const char* categoryName)
+int GetItemLevelCount(const char* configName,const char* itemId)
 {
     const ItemTable* pTable = GetItemTable(configName);
     if (pTable)
-        return pTable->GetItemLevelCount(categoryName);
+        return pTable->GetItemLevelCount(itemId);
     return 0;
 }
 

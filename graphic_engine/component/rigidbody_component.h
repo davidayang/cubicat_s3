@@ -10,6 +10,8 @@
 #include <string.h>
 #include "core/message/message_tube.h"
 
+namespace cubicat {
+
 class OrientationListener : protected MessageReceiver {
 public:
     OrientationListener();
@@ -33,11 +35,11 @@ public:
 
     void onAttachTarget(Node* target) override;
     void onMessage(int id, const void* msg) override;
-    void velocity(const Vector2& dir, float speed);
+    void velocity(const Vector2f& dir, float speed);
     void update(Node* target, float deltaTime) override;
-    void moveTo(const Vector2& pos, float time);
+    void moveTo(const Vector2f& pos, float time);
     static void setGravityDir(float dirx, float diry);
-    static Vector2 getGravityDir();
+    static Vector2f getGravityDir();
     static void initWorld();
     static void tick(float deltaTime);
     static const std::vector<uint32_t>& getColliders(uint32_t id);
@@ -50,8 +52,9 @@ private:
     static std::map<uint32_t,std::vector<uint32_t>>  m_sCollisionMap;
     float               m_fMoveTime;
     float               m_fMoveTimeElapse;
-    Vector2             m_moveStart;
-    Vector2             m_moveDest;
-    Vector2             m_size;
+    Vector2f            m_moveStart;
+    Vector2f            m_moveDest;
+    Vector2f            m_size;
 };
+}
 #endif

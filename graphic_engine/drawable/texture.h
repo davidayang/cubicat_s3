@@ -2,33 +2,41 @@
 #define _TEXTURE_H_
 #include "core/memory_object.h"
 #include "core/shared_pointer.h"
+#include "core/rtti.h"
+#include "../math/vector2.h"
+#include "../dirtyable.h"
 
 namespace cubicat {
 
-class Texture : public MemoryObject
+class Texture : public MemoryObject, public RTTI, public Dirtyable
 {
 public:
-    static SharedPtr<Texture> create(uint16_t width, uint16_t height, const void* data, uint16_t col, uint16_t row, 
+    DECLARE_RTTI_ROOT(Texture);
+    static SharedPtr<Texture> create(uint16_t width, uint16_t height, const void* data, bool manageData, uint16_t col, uint16_t row,
     const uint16_t* palette = nullptr, uint8_t bpp = 16, bool hasAlpha = false) {
-        return SharedPtr<Texture>(new Texture(width, height, data, col, row, palette, bpp, hasAlpha));
+        return SharedPtr<Texture>(new Texture(width, height, data, manageData, col, row, palette, bpp, hasAlpha));
     }
-    Texture(uint16_t width, uint16_t height, const void* data, uint16_t col, uint16_t row,const uint16_t* palette, 
+    Texture(uint16_t width, uint16_t height, const void* data, bool manageData, uint16_t col, uint16_t row,const uint16_t* palette, 
     uint8_t bpp, bool hasAlpha);
-    ~Texture();
-    uint16_t getWidth() const { return m_width; }
-    uint16_t getHeight() const { return m_height; }
+    virtual ~Texture();
     const void* getTextureData() { return m_pData; }
-    uint16_t getFrameWidth() { return m_frameWidth; }
-    uint16_t getFrameHeight() { return m_frameHeight; }
-    const void* getFrameData(uint16_t idx);
-    const void* getFrameData() { return m_pFramePtr; }
+    // [JS_BINDING_BEGIN]
+    void setAsSpriteSheet(uint16_t row, uint16_t col);
     void setFrame(int nth);
+    Texture* shallowCopy();
+    // [JS_BINDING_END]
+    // texure size equal to original texture size when there is only one frame
+    Vector2us getTextureSize() { return Vector2us(m_frameWidth, m_frameHeight); }
+    const void* getFrameData() { return m_pFramePtr; }
     uint16_t getFrameCount();
     bool hasAlpha() { return m_hasAlpha;}
     uint8_t getColorDepth() { return m_bpp; }
-    bool readPixel(int32_t x, int32_t y, uint32_t* value);
-    uint32_t readPixelUnsafe(uint32_t x, uint32_t y);
+    virtual bool readPixel(int32_t x, int32_t y, uint32_t* value);
+    // read pixel without border checking
+    virtual uint32_t readPixelUnsafe(uint32_t x, uint32_t y);
+    const uint16_t* getPalette() { return m_palette; }
 private:
+    const void* getFrameData(uint16_t idx);
     const void*     m_pData;
     const void*     m_pFramePtr;
     uint16_t        m_col;
@@ -39,8 +47,10 @@ private:
     uint16_t        m_frameHeight;
     bool            m_hasAlpha;
     const uint16_t* m_palette;
-    const uint8_t   m_bpp;
+    const uint8_t   m_bpp;      //bit per pixel
     uint16_t        m_frame = 0;
+    bool            m_bDataManaged = false;
+    bool            m_bReordered = false;
 };
 typedef SharedPtr<Texture> TexturePtr;
 
@@ -67,13 +77,25 @@ inline uint32_t Texture::readPixelUnsafe(uint32_t x, uint32_t y) {
         }
         return value;
     } else if (m_bpp == 32) {
-        const uint32_t* address = (uint32_t*)m_pFramePtr + offset;
-        return *address;
+        return *((uint32_t*)m_pFramePtr + offset);
     } else {
         assert(0 && "Invalid color depth");
         return 0;
     }
 }
+
+class SolidTexture : public Texture {
+public:
+    DECLARE_RTTI_SUB(SolidTexture, Texture);
+    SolidTexture(uint16_t color = 0xffff);
+    void setAsSpriteSheet(uint16_t row, uint16_t col) = delete;
+    void setFrame(int nth) = delete;
+    Texture* copy() = delete;
+    bool readPixel(int32_t x, int32_t y, uint32_t* value) override { *value = m_color; return true; }
+    uint32_t readPixelUnsafe(uint32_t x, uint32_t y) override { return m_color; }
+private:
+    uint16_t    m_color;
+};
 
 } // namespace cubicat
 #endif

@@ -1,6 +1,7 @@
 #ifndef _NODE_H_
 #define _NODE_H_
 #include "math/vector2.h"
+#include "math/vector3.h"
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -9,153 +10,94 @@
 #include "core/message/message_tube.h"
 #include "region.h"
 #include "core/memory_object.h"
+#include "core/id_object.h"
 #include <string.h>
 
-class Node;
-typedef SharedPtr<Node>       NodePtr;
+namespace cubicat {
 
-class Node : public std::enable_shared_from_this<Node>,public MessageTube, public RTTI, public MemoryObject{
+
+class Node;
+typedef SharedPtr<Node>     NodePtr;
+
+class Node : public std::enable_shared_from_this<Node>, public MessageTube, public MessageDispatcher, public RTTI, public MemoryObject, public IDObject{
 public:
     DECLARE_RTTI_ROOT(Node);
     virtual ~Node();
+    // [JS_BINDING_BEGIN]
+    virtual void setParent(Node* parent);
+    // [JS_BINDING_END]
+    // @param deltaTime update time elapse in second
+    // @param parentDirty parent object dirty mark, including all it's ancestors
+    virtual void update(float deltaTime,bool parentDirty);
 
-    NodePtr static create(const char* name = "") {
-        return SharedPtr<Node>(NEW Node(name));
-    }
-    unsigned int getId() {return m_Id;}
-    void setName(const char* name) {m_name = name;}
+    // [JS_BINDING_BEGIN]
+    void setName(const string& name) {m_name = name;}
+    void setVisible(bool visible) {m_bVisible = visible;}
+    void setScale(float s);
+    // [JS_BINDING_END]
     const std::string& getName() {return m_name;} 
-    void setPosition(const Vector2& pos);
-    void setPosition(float x, float y);
-    void translate(const Vector2& dir);
-    const Vector2& getPosition();
-    const Vector2& getWorldPosition();
-    const Vector2& getScale();
-    const Vector2& getWorldScale();
-    float getWorldRotation();
-    void setRotation(int16_t angle);
-    void rotate(float angle);
-    int16_t getRotation();
-    void setParent(Node* parent);
-    void setScale(const Vector2& scale);
-    void setScale(float x, float y);
-    void setZ(int z);
-    int getZ() {return m_Z;}
+    const Vector3f& getPosition() {return m_localPos;}
+    Vector3f getWorldPosition();
+    const Vector3f& getScale() {return m_localScale;}
+    const Vector3f& getWorldScale();
     Node* getParent() {return m_pParent;}
-    virtual void update(float deltaTime);
     void attachDrawable(DrawablePtr drawable);
     const std::vector<DrawablePtr>& getDrawables() const;
+    // [JS_BINDING_BEGIN]
     DrawablePtr getDrawable(uint32_t index);
+    // [JS_BINDING_END]
+    template<class T>
+    T* getDrawable();
     void clearDrawables();
-    void findDrawables(std::vector<DrawablePtr>& outList);
-    const std::vector<NodePtr> getChildren();
-    void setVisible(bool visible) {m_bVisible = visible;}
+    NodePtr getChild(uint32_t index);
+    template<class T>
+    T* getChild();
+    const std::vector<NodePtr>& getChildren();
     bool isVisible() {return m_bVisible;}
-    bool isDirty() {return m_bDirty;}
+    bool isTransformDirty() {return m_bTransformDirty;}
     void addComponent(ComponentPtr component);
     int getComponentCount() {return (int)m_vComponents.size();}
-    Region getAABB();
 protected:
-    Node(const char* name = "");
+    Node(const string& name = "");
+    virtual void updateFromParent(bool parentDirty);
     virtual void onSetParent(){};
-private:
-    void attachChild(NodePtr child);
-    void detachChild(NodePtr child);
-    void updateFromParent();
-    void resort();
-    Vector2 m_LocalPos;
-    int     m_Z;
-    float   m_LocalRot;
-    Vector2 m_LocalScale;
+    virtual void attachChild(NodePtr child);
+    void setTransformDirty(bool dirty);
 
-    Vector2 m_WorldPos;
-    float   m_WorldRot;
-    Vector2 m_WorldScale;
-    std::vector<NodePtr>  m_vChildren;
-    std::vector<DrawablePtr>    m_vDrawables;
+    Node*                       m_pParent = nullptr;
     std::vector<ComponentPtr>   m_vComponents;
-    Node*                       m_pParent;
+
+    Vector3f                    m_localPos;
+    Vector3f                    m_localScale = Vector3f(1.0f, 1.0f, 1.0f);
+    Vector3f                    m_worldPos;
+    Vector3f                    m_worldScale = Vector3f(1.0f, 1.0f, 1.0f);
+
+    std::vector<NodePtr>        m_vChildren;
+    std::vector<DrawablePtr>    m_vDrawables;
+private:
+    void detachChild(NodePtr child);
+
     std::string                 m_name;
-    unsigned int                m_Id;
     static unsigned int         m_sIdCounter;
-    bool                        m_bVisible;
-    bool                        m_bDirty;
+    bool                        m_bVisible = true;
+    bool                        m_bTransformDirty = true;
 };
 
-inline void Node::setPosition(const Vector2& pos) {
-    setPosition(pos.x, pos.y);
-}
-inline void Node::setPosition(float x,float y) {
-    m_LocalPos.x = x;
-    m_LocalPos.y = y;
-    m_bDirty = true;
-}
-inline void Node::translate(const Vector2& dir) {
-    m_LocalPos.x += dir.x;
-    m_LocalPos.y += dir.y;
-    m_bDirty = true;
-}
-inline const Vector2& Node::getPosition() {
-    return m_LocalPos;
-}
-inline const Vector2& Node::getWorldPosition() {
-    if (m_bDirty) {
-        updateFromParent();
+inline Vector3f Node::getWorldPosition() {
+    if (m_bTransformDirty) {
+        updateFromParent(false);
     }
-    return m_WorldPos;
+    return m_worldPos;
 }
-inline const Vector2& Node::getScale() {
-    return m_LocalScale;
+
+inline const Vector3f& Node::getWorldScale(){
+    return m_worldScale;
 }
-inline void Node::setScale(const Vector2& scale) {
-    setScale(scale.x, scale.y);
-}
-inline const Vector2& Node::getWorldScale(){
-    return m_WorldScale;
-}
-inline float Node::getWorldRotation() {
-    return m_WorldRot;
-}
-inline void Node::setScale(float x, float y) {
-    m_LocalScale.x = x;
-    m_LocalScale.y = y;
-    m_bDirty = true;
-}
-inline void Node::setRotation(int16_t angle) {
-    if (angle == m_LocalRot)
-        return;
-    m_LocalRot = angle;
-    m_bDirty = true;
-}
-inline void Node::rotate(float angle) {
-    m_LocalRot += angle;
-    m_bDirty = true;
-}
-inline int16_t Node::getRotation() {
-    return m_LocalRot;
-}
-inline void Node::setParent(Node* parent) {
-    if (parent == this || parent == m_pParent)
-        return;
-    if (m_pParent)
-        m_pParent->detachChild(shared_from_this());
-     m_pParent = parent;
-    if (m_pParent)
-        m_pParent->attachChild(shared_from_this());
-    m_bDirty = true;
-    onSetParent();
-}
-inline bool zCompare(const NodePtr& a, const NodePtr& b) {
-    return a->getZ() < b->getZ();
-}
+
 inline void Node::attachChild(NodePtr child) {
     m_vChildren.push_back(child);
-    resort();
 }
-inline void Node::resort() {
-    // resort z order
-    std::sort(m_vChildren.begin(), m_vChildren.end(), zCompare);
-}
+
 inline void Node::detachChild(NodePtr child) {
     for (auto it = m_vChildren.begin(); it != m_vChildren.end(); ++it) {
         if (*it == child) {
@@ -164,8 +106,29 @@ inline void Node::detachChild(NodePtr child) {
         }
     }
 }
-inline const std::vector<NodePtr> Node::getChildren() {
+inline const std::vector<NodePtr>& Node::getChildren() {
     return m_vChildren;
 }
 
+template<class T>
+T* Node::getDrawable() {
+    for (auto& drawable : m_vDrawables) {
+        auto d = drawable->cast<T>();
+        if (d)
+            return d;
+    }
+    return nullptr;
+}
+
+template<class T>
+T* Node::getChild() {
+    for (auto& child : m_vChildren) {
+        auto d = child->cast<T>();
+        if (d)
+            return d;
+    }
+    return nullptr;
+}
+
+}
 #endif

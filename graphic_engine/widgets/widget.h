@@ -1,9 +1,10 @@
 #ifndef _WIDGET_H_
 #define _WIDGET_H_
-#include "../node.h"
+#include "../node2d.h"
 
+namespace cubicat {
 
-class Widget : public Node {
+class Widget : public Node2D {
 public:
     DECLARE_RTTI_SUB(Widget, Node);
     enum Alignment {
@@ -41,5 +42,5 @@ protected:
 };
 
 typedef SharedPtr<Widget> WidgetPtr;
-
+}
 #endif

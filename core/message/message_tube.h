@@ -5,6 +5,8 @@
 #include <vector>
 #include <set>
 
+namespace cubicat {
+
 class MessageTube;
 class MessageReceiver {
 public:
@@ -21,8 +23,10 @@ private:
 
 class MessageDispatcher {
 public:
+    // [JS_BINDING_BEGIN]
     static void sendGlobalMessage(int id, const void* msg);
     static void sendLocalMessage(MessageTube* tube, int id, const void* msg);
+    // [JS_BINDING_END]
 };
 
 class MessageTube {
@@ -36,4 +40,5 @@ public:
     void broadcastMessage(int id, const void* msg);
 };
 
+}
 #endif

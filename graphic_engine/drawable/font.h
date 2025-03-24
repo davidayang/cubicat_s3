@@ -11,9 +11,10 @@ struct FontData {
     uint16_t charCount;
     const char* charSet;
 };
-
-extern int getCharIndex(const char* str, const char* target);
-extern std::vector<std::string> splitUTF8(const char* s);
 extern FontData DefaultFontData;
+
+int getCharIndex(const char* str, const char* target);
+std::vector<std::string> splitUTF8(const char* s);
+void calculateUTFStringSize(const char* text, uint16_t* width, uint16_t* height);
 
 #endif

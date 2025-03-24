@@ -18,7 +18,9 @@ public:
     Wifi& operator=(const Wifi&) = delete;
     ~Wifi();
     static void init();
+    // [JS_BINDING_BEGIN]
     static bool connect(std::string ssid, std::string password);
+    // [JS_BINDING_END]
     static void connectAsync(std::string ssid, std::string password, ConnectCallback callback);
     // connect to wifi with smartconfig
     static void smartConnect(ConnectCallback callback);

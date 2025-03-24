@@ -138,7 +138,8 @@ void Wifi::connectAsync(std::string ssid, std::string password, ConnectCallback 
     if (isConnecting())
         return;
     if (isConnected()) {
-        callback(true, m_sIP.c_str());
+        if (callback)
+            callback(true, m_sIP.c_str());
         return;
     }
     if (ssid.empty()) {
@@ -148,7 +149,8 @@ void Wifi::connectAsync(std::string ssid, std::string password, ConnectCallback 
         m_sPASSWD = password;
     }
     if (m_sSSID.empty()) {
-        callback(false, "");
+        if (callback)
+            callback(false, "");
         return;
     }
     setState(CONNECTING);
