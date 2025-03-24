@@ -87,6 +87,8 @@ void JSBindingInit(const char *fileDir, RegisterCallback registerCallback)
 }
 
 void JSCall(const char *func, int nargs, ...) {
+    if (!mjs)
+        return;
     assert(nargs <= 6);
     mjs_val_t res;
     va_list ap;
