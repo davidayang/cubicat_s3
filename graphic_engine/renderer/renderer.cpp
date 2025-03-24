@@ -311,19 +311,18 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
     for (int y = bbox.y; y < bbox.y + bbox.h; y++) {
         int worldY = m_viewport.h - y;
         int aeCount = 0;
-        Edge* e = &edgeList[0];
         for (int i=0;i<edgeCount;i++) {
-            if (worldY <= e->yMax && worldY >= e->yMin) {
+            auto& e = edgeList[i];
+            if (worldY <= e.yMax && worldY >= e.yMin) {
                 IntersectionPoint* p = &g_vIntersectionPoints[aeCount++];
-                p->x = e->x + e->dx * (worldY - e->yMin);
-                p->u = e->u + e->du * (worldY - e->yMin);
-                p->v = e->v + e->dv * (worldY - e->yMin);
+                p->x = e.x + e.dx * (worldY - e.yMin);
+                p->u = e.u + e.du * (worldY - e.yMin);
+                p->v = e.v + e.dv * (worldY - e.yMin);
             }
-            e++;
         }
         for (int i = 0; i < aeCount; i+=2) {
             IntersectionPoint* p0 = &g_vIntersectionPoints[i];
-            IntersectionPoint* p1 = p0 + 1;
+            IntersectionPoint* p1 = &g_vIntersectionPoints[i + 1];
             if (p0->x > p1->x) {
                 std::swap(p0, p1);
             }
@@ -338,7 +337,7 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
             int startPos = floor(p0->x);
             float u_step = (p1->u - p0->u) / len;
             float v_step = (p1->v - p0->v) / len;
-            if (LIKELY(p0->x >= leftBorder)) {
+            if (p0->x >= leftBorder) {
                 float subPixelHead = p0->x - startPos;
                 p0->u -= u_step * subPixelHead;
                 p0->v -= v_step * subPixelHead;
