@@ -10,48 +10,6 @@
 using namespace cubicat;
 IntersectionPoint* g_vIntersectionPoints = nullptr;
 uint16_t g_nIntersectionPointsCount = 0;
-Vector4f* g_vClipPositionCache = nullptr;
-uint16_t g_nClipPosCacheCount = 0;
-
-// w and uv are already divided by w
-#define CREATE_SCANLINE_EDGE(edge, p0, p1, u0, v0, u1, v1, illum0, illum1, z0, z1, w0, w1) \
-{ \
-    if (LIKELY(p0.y != p1.y)) { \
-        float _u0 = u0; \
-        float _v0 = v0; \
-        float _u1 = u1; \
-        float _v1 = v1; \
-        float step = 1.0f / (p0.y - p1.y); \
-        edge.dx = (p0.x - p1.x) * step; \
-        edge.du = (_u0 - _u1) * step; \
-        edge.dv = (_v0 - _v1) * step; \
-        edge.dz = (z0 - z1) * step; \
-        edge.dw = (w0 - w1) * step; \
-        edge.dillum = (illum0 - illum1) * step; \
-        if (p0.y < p1.y) { \
-            edge.x = p0.x; \
-            edge.yMin = p0.y; \
-            edge.yMax = p1.y; \
-            edge.u = _u0; \
-            edge.v = _v0; \
-            edge.z = z0; \
-            edge.w = w0; \
-            edge.illum = illum0; \
-        } else { \
-            edge.x = p1.x; \
-            edge.yMin = p1.y; \
-            edge.yMax = p0.y; \
-            edge.u = _u1; \
-            edge.v = _v1; \
-            edge.z = z1; \
-            edge.w = w1; \
-            edge.illum = illum1; \
-        } \
-    } else { \
-        edge.yMin = 0; \
-        edge.yMax = 0; \
-    } \
-}
 
 #define GEN_INTERSECTION_POINT_2D(edge, pair, worldY) \
     if (edge->yMax != edge->yMin && worldY <= edge->yMax && worldY >= edge->yMin) { \
@@ -107,12 +65,6 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
 
 #define ReadPixel(x, y) \
     backBuffer[y * m_viewport.w + x];
-
-#define ReadDepth(x, y) \
-    m_pZBuffer[y * m_viewport.w + x]
-
-#define WriteDepth(x, y, z) \
-    m_pZBuffer[y * m_viewport.w + x] = z;
 
 #define SamplePixel(texture, x, y, color) \
     if (hasRot) { \
@@ -174,37 +126,43 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
         color = color0; \
     }
 
-#define AlphaBlend(x, y, _r, _g, _b, alpha) \
+#define AlphaBlend(x, y, color) \
     /* if pixel has alpha channel. pixel format: RGBA8888*/ \
-    if (UNLIKELY(colorMix)) { \
-        _r = (_r * col_r) >> 5; \
-        _g = (_g * col_g) >> 6; \
-        _b = (_b * col_b) >> 5; \
-    } \
-    if (LIKELY(blendMode == BlendMode::Normal)) { \
-        if (hasAlpha && alpha < 255) { \
-            if (alpha == 0) \
-                continue; \
+    if (hasAlpha) { \
+        uint8_t _r = color >> 27; \
+        uint8_t _g = (color >> 18) & 0x3F; \
+        uint8_t _b = (color >> 11) & 0x1F; \
+        uint8_t alpha = color & 0xff; \
+        if (alpha == 0) { \
+            continue; \
+        } else if (alpha == 255) { \
+            color = (_r << 11) | (_g << 5) | _b; \
+        } else { \
             auto bgColor = ReadPixel(x, y); \
-            _r = (_r * alpha + (bgColor >> 11) * (255 - alpha)) >> 8; \
-            _g = (_g * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
-            _b = (_b * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+            if (blendMode == BlendMode::Normal) { \
+                uint8_t r = (_r * alpha + (bgColor >> 11) * (255 - alpha)) >> 8; \
+                uint8_t g = (_g * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = (_b * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                color = (r << 11) | (g << 5) | b; \
+            } else if (blendMode == BlendMode::Additive) { \
+                uint16_t r = ((_r * alpha) >> 8) + (bgColor >> 11); \
+                if (r > 0x1F) \
+                    r = 0x1F; \
+                uint16_t g = ((_g * alpha) >> 8) + ((bgColor >> 5) & 0x3F); \
+                if (g > 0x3F) \
+                    g = 0x3F; \
+                uint16_t b = ((_b * alpha) >> 8) + (bgColor & 0x1F); \
+                if (b > 0x1F) \
+                    b = 0x1F; \
+                color = (r << 11) | (g << 5) | b; \
+            } else {\
+                uint8_t r = (_r * ((bgColor >> 11) & 0x1F) / 65025 * alpha + (bgColor >> 11) * (255 - alpha)) >> 8; \
+                uint8_t g = (_g * ((bgColor >> 5) & 0x3F) / 65025 * alpha + ((bgColor >> 5) & 0x3F) * (255 - alpha)) >> 8; \
+                uint8_t b = (_b * (bgColor & 0x1F) / 65025 * alpha + (bgColor & 0x1F) * (255 - alpha)) >> 8; \
+                color = (r << 11) | (g << 5) | b; \
+            } \
         } \
-    } else if (blendMode == BlendMode::Additive) { \
-        auto bgColor = ReadPixel(x, y); \
-        _r = ((_r * alpha) >> 8) + (bgColor >> 11); \
-        _g = ((_g * alpha) >> 8) + ((bgColor >> 5) & 0x3F); \
-        _b = ((_b * alpha) >> 8) + (bgColor & 0x1F); \
-        ColorClamp(_r, _g, _b); \
-    } else { /* BlendMode::Multiply */ \
-        auto bgColor = ReadPixel(x, y); \
-        auto bg_r = bgColor >> 11; \
-        auto bg_g = (bgColor >> 5) & 0x3F; \
-        auto bg_b = bgColor & 0x1F; \
-        _r = ((_r * bg_r * alpha) >> 16) + ((bg_r * (255 - alpha)) >> 8); \
-        _g = ((_g * bg_g * alpha) >> 16) + ((bg_g * (255 - alpha)) >> 8); \
-        _b = ((_b * bg_b * alpha) >> 16) + ((bg_b * (255 - alpha)) >> 8); \
-    }
+    } 
 
 #define GetRGB16(color) \
     r = color >> 11; \
@@ -233,36 +191,6 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
         cache = (cacheType*)psram_prefered_malloc(cachedCount * sizeof(cacheType)); \
     }
 
-#define CLIP_TO_SCREEN(clip_p0, clip_p1, clip_p2, screenSize) \
-    auto p0 = clipSpaceToScreenSpace(clip_p0, screenSize); \
-    auto p1 = clipSpaceToScreenSpace(clip_p1, screenSize); \
-    auto p2 = clipSpaceToScreenSpace(clip_p2, screenSize);
-
-#define EDGE_FUNCTION(a, b, p, f) \
-    f = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-
-
-#define INTERPOLATE_TEXCOORD(t0, t1, t2, byc_u, byc_v, byc_w) \
-    Vector2f uv; \
-    uv.x = byc_u * t0.x + byc_v * t1.x + byc_w * t2.x; \
-    uv.y = byc_u * t0.y + byc_v * t1.y + byc_w * t2.y;
-
-#define INTERPOLATE_SINGLE(f0, f1, f2, byc_u, byc_v, byc_w, f) \
-    f = byc_u * f0 + byc_v * f1 + byc_w * f2;
-
-
-#define SCANLINE_RASTERIZE \
-    if (ortho) { \
-        SCAN_TRIANGLE_3D(edge0, edge1, edge2, p0, p1, p2, z0, z1, z2, 1, 1, 1, uv0, uv1, uv2, illum0, illum1, illum2) \
-    } else { \
-        float nearPercent = near / (far - near); \
-        if (LIKELY(z0 > nearPercent && z1 > nearPercent && z2 > nearPercent)) { /*all vertex in front of camera*/  \
-            SCAN_TRIANGLE_3D(edge0, edge1, edge2, p0, p1, p2, z0, z1, z2, 1/clip_p0.w, 1/clip_p1.w, 1/clip_p2.w, uv0, uv1, uv2, illum0, illum1, illum2) \
-        } else if (z0 > nearPercent || z1 > nearPercent || z2 > nearPercent) { /*at least one vertex in back of camera*/  \
-            SCANLINE_NEAR_PLANE_SPLIT \
-        } \
-    }
-
 Renderer::Renderer(DisplayInterface* backBuffer)
 : m_pBackBufferInterface(backBuffer)
 {
@@ -279,26 +207,13 @@ Renderer::~Renderer() {
 
 void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
     uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
-    uint16_t texWidth = 0;
-    uint16_t texHeight = 0;
     auto material = poly->getMaterial();
     auto texture = material->getTexture().get();
-    auto hasAlpha = false;
     auto blendMode = material->getBlendMode();
-    if (texture) {
-        texWidth = texture->getTextureSize().x - 1;
-        texHeight = texture->getTextureSize().y - 1;
-        hasAlpha = texture->hasAlpha();
-    }
-    uint32_t col = material->getColor();
-    uint8_t col_r = col >> 11;
-    uint8_t col_g = col >> 5 & 0x3F;
-    uint8_t col_b = col & 0x1F;
-    bool colorMix = col != 65535;
-    uint8_t r = 0, g = 0, b = 0, a = 0; uint32_t color = 0;
-    auto hasRot = poly->getAngle() != 0;
-    auto hasScale = poly->getScale().x != 1.0f || poly->getScale().y != 1.0f;
-    auto bilinear =  material->isBilinearFilter();
+    uint16_t texWidth = texture->getTextureSize().x - 1;
+    uint16_t texHeight = texture->getTextureSize().y - 1;
+    bool hasAlpha = texture->hasAlpha();
+    auto bilinear =  material->isBilinearFilter() || poly->getAngle() != 0;
     auto bbox = poly->getRegion();
     // change to screen coordinate
     bbox.y = m_viewport.h - bbox.y;
@@ -321,47 +236,43 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
             }
         }
         for (int i = 0; i < aeCount; i+=2) {
-            IntersectionPoint* p0 = &g_vIntersectionPoints[i];
-            IntersectionPoint* p1 = &g_vIntersectionPoints[i + 1];
-            if (p0->x > p1->x) {
+            IntersectionPoint& p0 = g_vIntersectionPoints[i];
+            IntersectionPoint& p1 = g_vIntersectionPoints[i + 1];
+            if (p0.x > p1.x) {
                 std::swap(p0, p1);
             }
-            // two intersection points are out of view port
-            if (p0->x < leftBorder && p1->x < leftBorder) {
-                continue;
+            // two intersection points are close than 1 pixel
+            float len = p1.x - p0.x;
+            if (len < 1.0f) {
+                len = 1.0f;
             }
-            if (p0->x >= rightBorder && p1->x >= rightBorder) {
-                continue;
+            int startPos = p0.x;
+            int endPos = p1.x;
+            float u_step = (p1.u - p0.u) / len;
+            float v_step = (p1.v - p0.v) / len;
+            float u_offset = u_step * (startPos - p0.x);
+            float v_offset = v_step * (startPos - p0.x);
+            // handle out of bounding box
+            if (p0.x < bbox.x) {
+                startPos = bbox.x;
+                u_offset = u_step * (bbox.x - p0.x);
+                v_offset = v_step * (bbox.x - p0.x);
             }
-            float len = p1->x - p0->x;
-            int startPos = floor(p0->x);
-            float u_step = (p1->u - p0->u) / len;
-            float v_step = (p1->v - p0->v) / len;
-            if (p0->x >= leftBorder) {
-                float subPixelHead = p0->x - startPos;
-                p0->u -= u_step * subPixelHead;
-                p0->v -= v_step * subPixelHead;
-                len += subPixelHead;
-            } else {
-                float n = leftBorder - p0->x;
-                startPos = leftBorder;
-                p0->u += u_step * n;
-                p0->v += v_step * n;
-                len -= n;
+            if (p1.x >= bbox.x + bbox.w) {
+                endPos = bbox.x + bbox.w;
             }
-            float subPixelTail= p1->x - floor(p1->x);
-            len -= subPixelTail;
-            int16_t x = startPos - 1;
-            float n = 0.0f;
-            while(len > 0 && x < rightBorder - 1) {
-                x++;
-                n += len >= 1 ? 1.0f : len;
-                len -= 1;
-                // sample color only when has texture, otherwise use polygon color
-                float uCoord = (p0->u + n * u_step) * texWidth;
-                float vCoord = (p0->v + n * v_step) * texHeight;
+            for (int x = startPos; x < endPos; x++) {
+                // calc u, v and epsilon for percision correction
+                const float epsilon = 0.0001f;
+                float u = p0.u + u_offset + epsilon;
+                float v = p0.v + v_offset + epsilon;
+                u_offset += u_step;
+                v_offset += v_step;
+                float uCoord = u * texWidth;
+                float vCoord = v * texHeight;
+                uint8_t r = 0, g = 0, b = 0, a = 255; uint32_t color = 0;
 #ifdef CONFIG_ENABLE_BILINEAR_FILTER
-                if (hasRot || hasScale || bilinear) {
+                if (bilinear) {
                     SamplePixelBilinear(texture, uCoord, vCoord, color);
                 } else {
                     color = texture->readPixelUnsafe(uCoord, vCoord);
@@ -369,14 +280,8 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
 #else
                 color = texture->readPixelUnsafe(uCoord, vCoord);
 #endif
-                if (hasAlpha) {
-                    GetRGBA32(color)
-                } else {
-                    GetRGB16(color)
-                }
-                AlphaBlend(x, y, r, g, b, a)
-                CombineColor(r, g, b)
-                WritePixel(x, y, color)
+                AlphaBlend(x, y, color);
+                WritePixel(x, y, color);
             }
         }
     }
@@ -385,12 +290,8 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
 void Renderer::draw(Drawable *drawable)
 {
     uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
-    if (!backBuffer) {
-        LOGE("Failed to get back buffer\n");
-        return;
-    }
     if (drawable->ofA<Polygon2D>()) {
-        drawPolygon2DScanline(drawable->cast<Polygon2D>());
+        drawPolygon2DScanline(static_cast<Polygon2D*>(drawable));
         drawable->onFinishDraw();
         return;
     }
@@ -477,11 +378,7 @@ void Renderer::draw(Drawable *drawable)
 #endif
                 uint16_t screenX = region.x + i;
                 uint16_t screenY = region.y + j;
-                if (hasAlpha) {
-                    GetRGBA32(color)
-                    AlphaBlend(screenX, screenY, r, g, b, a)
-                    CombineColor(r, g, b)
-                }
+                AlphaBlend(screenX, screenY, color);
                 WritePixel(screenX, screenY, color);
             }
         }
