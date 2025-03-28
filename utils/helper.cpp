@@ -163,3 +163,15 @@ size_t urlencode_expected_len(const char* source){
     }
     return expectedLen;
 }
+
+size_t base64LenExpected(size_t bufLen){
+    int base64Len = 4 * (bufLen + 2) / 3 + 1;
+    return base64Len;
+}
+
+void toLowerCase(char* str) {
+    if (!str) return;
+    for (int i = 0; str[i] != '\0'; i++) {
+        str[i] = tolower(str[i]);
+    }
+}

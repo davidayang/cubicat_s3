@@ -13,7 +13,7 @@ public:
     void setBitsPerSample(uint8_t bitPerSample);
     void setEnable(bool enable);
     void playFile(const char* filename, bool loop = false);
-    void playRaw(const uint8_t* pcm, size_t len);
+    void playRaw(const int16_t* pcm, size_t len, uint8_t channels);
     void stopPlay();
     void setVolume(float volume);
 private:

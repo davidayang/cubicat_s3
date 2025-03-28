@@ -8,7 +8,7 @@
 
 typedef std::function<void(uint16_t)> SampleRateCallback;
 typedef std::function<void(uint8_t)> BitDepthCallback;
-typedef std::function<void(uint8_t*, size_t)> PlayPCMCallback;
+typedef std::function<void(int16_t*, size_t, uint8_t)> PlayPCMCallback;
 typedef std::function<void()> StopPlayCallback;
 
 struct AudioCacheBuffer {

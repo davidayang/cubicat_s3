@@ -6,14 +6,12 @@
 #include <string.h>
 #include "core/memory_allocator.h"
 
-void volumeAdjust(uint8_t* audio_data, size_t length, float volumePercent) {
-    if ( volumePercent == 1.0) return;
-    int16_t* data = (int16_t*)audio_data;
-    int len = length / 2;
-    for (size_t i = 0; i < len; ++i) {
-        int16_t sample = data[i];
-        sample *= volumePercent;
-        data[i] = sample;
+void volumeAdjust(int16_t* buf, size_t length, float volumePercent) {
+    if (volumePercent == 1.0f) {
+        return;
+    }
+    for (size_t i = 0; i < length; ++i) {
+        buf[i] *= volumePercent;
     }
 }
 
@@ -32,8 +30,8 @@ Speaker::Speaker(uint32_t sampleRate, uint8_t bitPerSample)
         .slot_cfg = {
             .data_bit_width = (i2s_data_bit_width_t)bitPerSample,
             .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
-            .slot_mode = I2S_SLOT_MODE_MONO,
-            .slot_mask = I2S_STD_SLOT_LEFT,
+            .slot_mode = I2S_SLOT_MODE_STEREO,
+            .slot_mask = I2S_STD_SLOT_BOTH,
             .ws_width = 1,
             .ws_pol = true,
             .bit_shift = true,
@@ -125,8 +123,8 @@ void Speaker::playFile(const char* filename, bool loop) {
         this->setSampleRate(sampleRate);
     }, [this](uint8_t bitDepth) {
         this->setBitsPerSample(bitDepth);
-    }, [this](uint8_t* data, size_t len) {
-        this->playRaw(data, len);
+    }, [this](int16_t* data, size_t len, uint8_t channels) {
+        this->playRaw(data, len, channels);
     }, [this]() {
         this->setEnable(false);
     });
@@ -134,17 +132,30 @@ void Speaker::playFile(const char* filename, bool loop) {
     m_pAudioPlayer->play(filename, loop);
 }
 
-void Speaker::playRaw(const uint8_t* data, size_t len) {
-    const int SegmentSize = 1024;
+void Speaker::playRaw(const int16_t* data, size_t len, uint8_t channels) {
+    const int SegmentSize = 128;
     size_t dateRemain = len;
+    int16_t buffer[SegmentSize];
+    int16_t* ptr = (int16_t*)data;
     while (dateRemain > 0)
     {
-        size_t sizeWritten = 0;
         size_t writeSize = dateRemain > SegmentSize ? SegmentSize : dateRemain;
-        const uint8_t* ptr = data + len - dateRemain;
-        volumeAdjust((uint8_t*)ptr, writeSize, m_fVolume);
-        i2s_channel_write(m_channelHandle, ptr, writeSize, &sizeWritten, portMAX_DELAY);
-        dateRemain -= sizeWritten;
+        size_t buffLen = writeSize * sizeof(int16_t);
+        if (channels == 1) {
+            writeSize /= 2;
+            for (size_t i = 0; i < writeSize; i++) {
+                int16_t v = *ptr++;
+                buffer[i*2] = v;
+                buffer[i*2 + 1] = v;
+            }
+        } else {
+            memcpy(buffer, ptr, writeSize * sizeof(int16_t));
+            ptr += writeSize;
+        }
+        volumeAdjust(buffer, buffLen, m_fVolume);
+        size_t bytesWritten = 0;
+        i2s_channel_write(m_channelHandle, (const char*)buffer, buffLen, &bytesWritten, portMAX_DELAY);
+        dateRemain -= writeSize;
     }
 }
 

@@ -112,11 +112,17 @@ int lastIndexOf(const char* haystack, const char* needle);
 
 int lastIndexOf(const char* haystack, const char needle);
 
+void toLowerCase(char* str);
+
 int specialIndexOf (uint8_t* base, const char* str, int baselen, bool exact = false);
 
 size_t bigEndian(uint8_t* base, uint8_t numBytes, uint8_t shiftLeft = 8) ;
 
 size_t urlencode_expected_len(const char* source);
+
+size_t base64LenExpected(size_t bufLen);
+
+bool base64Encode();
 
 // [JS_BINDING_BEGIN]
 uint32_t timeNow(int timeZone = 8);

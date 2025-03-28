@@ -167,7 +167,6 @@ bool AudioPlayer::proceed() {
     int sampleRate = MP3GetSampRate(); // 采样率（如44100）
     int bitDepth = MP3GetBitsPerSample(); // 位深度（如16）
     if (bitDepth != 16) {
-        LOGI("samps %d channels %d sampleRate %d bitDepth %d\n", samps, channels, sampleRate, bitDepth);
         LOGE("bit depth %d not supported", bitDepth);
         stop();
         return false;
@@ -177,15 +176,12 @@ bool AudioPlayer::proceed() {
     if (m_bitDepthCallback)
         m_bitDepthCallback(bitDepth);
     if (m_playPCMCallback)
-        m_playPCMCallback((uint8_t*)outbuf, samps);
+        m_playPCMCallback(outbuf, samps, channels);
     int readBytes = m_audioBuffer.append(m_pAudioFile);
     if (readBytes <= 0) { // eof
-        printf("eof\n");
         onFinish();
         return false;
     }
-    // float monoSamples = samps / channels;
-    // float durationSec = monoSamples / sampleRate;
     return true;
 }
 void AudioPlayer::onFinish() {
