@@ -53,7 +53,7 @@ static TimeStack _timerStack[32]; static int _timerStackDepth = 0;
 
 #define MEMORY_REPORT memoryReport(__FILE__, __LINE__);
 
-const int headerSize = 44;
+const int WaveHeaderSize = 44;
 extern void wavHeader(uint8_t* header, int wavSize);
 
 inline int getMainCoreId() {
@@ -97,8 +97,29 @@ inline std::string timestampToTimeString(time_t timestamp) {
     ss << std::put_time(&tm, "%y:%m:%d %H:%M:%S");
     return ss.str();
 }
+
+void trim(char *s);
+
+bool startsWith (const char* base, const char* str);
+
+bool endsWith (const char* base, const char* str);
+
+int indexOf (const char* base, const char* str, int startIndex);
+
+int indexOf (const char* base, char ch, int startIndex);
+
+int lastIndexOf(const char* haystack, const char* needle);
+
+int lastIndexOf(const char* haystack, const char needle);
+
+int specialIndexOf (uint8_t* base, const char* str, int baselen, bool exact = false);
+
+size_t bigEndian(uint8_t* base, uint8_t numBytes, uint8_t shiftLeft = 8) ;
+
+size_t urlencode_expected_len(const char* source);
+
 // [JS_BINDING_BEGIN]
-uint32_t timeNow(int timeZone);
+uint32_t timeNow(int timeZone = 8);
 // [JS_BINDING_END]
 extern "C" void memoryReport(const char* file, int line);
 

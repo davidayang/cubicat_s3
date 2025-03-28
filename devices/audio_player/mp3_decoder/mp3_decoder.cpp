@@ -45,21 +45,21 @@ const uint8_t  m_NGRANS_MPEG2           =1;
 const uint32_t m_SQRTHALF               =0x5a82799a;  // sqrt(0.5) in Q31 format
 
 
-MP3FrameInfo_t *m_MP3FrameInfo;
+MP3FrameInfo_t *m_MP3FrameInfo = NULL;
 SFBandTable_t m_SFBandTable;
 StereoMode_t m_sMode;  /* mono/stereo mode */
 MPEGVersion_t m_MPEGVersion;  /* version ID */
-FrameHeader_t *m_FrameHeader;
+FrameHeader_t *m_FrameHeader = NULL;
 SideInfoSub_t m_SideInfoSub[m_MAX_NGRAN][m_MAX_NCHAN];
-SideInfo_t *m_SideInfo;
+SideInfo_t *m_SideInfo = NULL;
 CriticalBandInfo_t m_CriticalBandInfo[m_MAX_NCHAN];  /* filled in dequantizer, used in joint stereo reconstruction */
-DequantInfo_t *m_DequantInfo;
-HuffmanInfo_t *m_HuffmanInfo;
-IMDCTInfo_t *m_IMDCTInfo;
+DequantInfo_t *m_DequantInfo = NULL;
+HuffmanInfo_t *m_HuffmanInfo = NULL;
+IMDCTInfo_t *m_IMDCTInfo = NULL;
 ScaleFactorInfoSub_t m_ScaleFactorInfoSub[m_MAX_NGRAN][m_MAX_NCHAN];
-ScaleFactorJS_t *m_ScaleFactorJS;
-SubbandInfo_t *m_SubbandInfo;
-MP3DecInfo_t *m_MP3DecInfo;
+ScaleFactorJS_t *m_ScaleFactorJS = NULL;
+SubbandInfo_t *m_SubbandInfo = NULL;
+MP3DecInfo_t *m_MP3DecInfo = NULL;
 
 const unsigned short huffTable[4242] PROGMEM = {
     /* huffTable01[9] */

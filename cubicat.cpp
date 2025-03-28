@@ -17,7 +17,7 @@
 
 #define SPKER_WS        10
 #define SPKER_BCK       11
-#define SPKER_DIN       12
+#define SPKER_DOUT      12
 #define SPKER_EN        13
 
 #define MIC_CLK         8          
@@ -39,12 +39,16 @@ void RendererDisplay::onDrawFinish(const Region& dirtyRegion) {
      int16_t(dirtyRegion.x + dirtyRegion.w), int16_t(dirtyRegion.y + dirtyRegion.h) });
 }
 
-void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool sdEnable, bool micEnable)
+void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sdEnable)
 {
+    if (speakerEnable && sdEnable) {
+        sdEnable = false;
+        LOGW("Speaker and sd card can not be enabled simultaneously\n");
+    }
     storage.init(sdEnable);
     lcd.init(TFT_WIDTH, TFT_HEIGHT, LCD_SDA, LCD_SCL, LCD_RST, LCD_DC, -1, LCD_TP_SDA, LCD_TP_SCL, LCD_TP_RST, LCD_TP_INT);
     if (speakerEnable)
-        speaker.init(SPKER_BCK, SPKER_WS, SPKER_DIN, SPKER_EN);
+        speaker.init(SPKER_BCK, SPKER_WS, SPKER_DOUT, SPKER_EN);
     if (micEnable)
         mic.init(MIC_CLK, MIC_DATA);
     if (wifiEnable)

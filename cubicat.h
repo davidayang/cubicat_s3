@@ -25,7 +25,7 @@ class Cubicat : public Singleton<Cubicat>
 {
     friend class Singleton<Cubicat>;
 public:
-    void begin(bool wifiEnable = true, bool speakerEnable = false, bool sdEnable = false, bool micEnable = false);
+    void begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sdEnable);
     // @param swap the buffer automatically if true, otherwise, let the user handle it
     void loop(bool present = true);
 public:

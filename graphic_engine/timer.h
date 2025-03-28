@@ -15,8 +15,7 @@ public:
     void setTime(float time) {m_fTotalTime = time;}
     void update(float deltaTime);
     float getElapse() const {return m_fElapse;}
-    bool check() const {return m_fElapse > m_fTotalTime;}
-    bool checkAndReset();
+    bool triggered() const {return m_bTriggered;}
     void reset();
     void start() {m_bStop = false;}
     void stop() {m_bStop = true;}
@@ -27,6 +26,7 @@ private:
     float   m_fElapse = 0.0f;
     float   m_fTotalTime = 0.0f;
     float   m_bStop = false;
+    bool    m_bTriggered = false;
     LoopType m_loopType = LOOP;
     unsigned char  m_direction = 1;
 };

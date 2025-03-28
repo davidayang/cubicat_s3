@@ -17,7 +17,6 @@ public:
     Wifi(const Wifi&) = delete;
     Wifi& operator=(const Wifi&) = delete;
     ~Wifi();
-    static void init();
     // [JS_BINDING_BEGIN]
     static bool connect(std::string ssid, std::string password);
     // [JS_BINDING_END]
@@ -29,6 +28,7 @@ public:
     static void disconnect();
 private:
     Wifi();
+    static void init();
     static void setState(ConnectState state) { m_sState = state; }
     static void eventLoop();
     static void onConnected(bool success, const char* ip);

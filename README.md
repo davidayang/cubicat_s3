@@ -32,3 +32,5 @@ We welcome any suggestions and feedback for this project.
   | coredump | data | coredump | 0xD10000 | 0x10000 |
 * ##### ESP System Settings
   ###### \> Main task stack size : 8192 (16384 is recommend)
+* ##### mbedTLS
+  ###### \> Memory allocation strategy : external SPIRAM

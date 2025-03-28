@@ -52,8 +52,6 @@ class Display {
     friend class Cubicat;
 public:
     Display(const Display& ) = delete;
-    void init(uint16_t width, uint16_t height, int sda, int scl, int rst, int dc, int blk = -1,
-     int touchSda = -1, int touchScl = -1, int touchRst = -1, int touchInt = -1);
     void setTouchListener(TouchListener* listener);
     const TOUCHINFO& getTouchInfo();
     bool isTouched();
@@ -85,6 +83,8 @@ public:
 protected:
     Display();
     ~Display();
+    void init(uint16_t width, uint16_t height, int sda, int scl, int rst, int dc, int blk = -1,
+        int touchSda = -1, int touchScl = -1, int touchRst = -1, int touchInt = -1);
     void allocBackBuffer();
     void _drawRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, bool fill, uint16_t thickness, uint16_t cornerRadius);
     void _drawCircle(int16_t x, int16_t y, uint16_t radius, uint16_t color, bool fill, uint16_t thickness);

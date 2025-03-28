@@ -2548,7 +2548,7 @@ extern "C" {
  * Maximum number of word-sized args to ffi-ed function. If at least one
  * of the args is double, only 2 args are allowed.
  */
-#define FFI_MAX_ARGS_CNT 6
+#define FFI_MAX_ARGS_CNT 8
 
 typedef void(ffi_fn_t)(void);
 
@@ -6372,6 +6372,10 @@ typedef ffi_word_t (*w5w_t)(ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t,
                             ffi_word_t);
 typedef ffi_word_t (*w6w_t)(ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t,
                             ffi_word_t, ffi_word_t);
+typedef ffi_word_t (*w7w_t)(ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t,
+                            ffi_word_t, ffi_word_t, ffi_word_t);
+typedef ffi_word_t (*w8w_t)(ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t,
+                            ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t);
 
 typedef ffi_word_t (*wdw_t)(double, ffi_word_t);
 typedef ffi_word_t (*wwd_t)(ffi_word_t, double);
@@ -6530,6 +6534,14 @@ int ffi_call(ffi_fn_t *func, int nargs, struct ffi_arg *res,
             w6w_t f = (w6w_t) func;
             r = f(W(args[0]), W(args[1]), W(args[2]), W(args[3]), W(args[4]),
                   W(args[5]));
+          } else if (nargs == 7) {
+            w7w_t f = (w7w_t) func;
+            r = f(W(args[0]), W(args[1]), W(args[2]), W(args[3]), W(args[4]),
+                  W(args[5]), W(args[6]));
+          } else if (nargs == 8) {
+            w8w_t f = (w8w_t) func;
+            r = f(W(args[0]), W(args[1]), W(args[2]), W(args[3]), W(args[4]),
+                  W(args[5]), W(args[6]), W(args[7]));
           } else {
             FUNC_MISS;
             abort();

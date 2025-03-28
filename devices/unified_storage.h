@@ -14,8 +14,6 @@ public:
     ~UnifiedStorage();
 
     // CAN NOT use MICPHONE and SD simultaneously
-    void init(bool sdEnable);
-    void deinit();
     bool setString(const char* key, const char* value);
     bool setInt(const char* key, int value);
     bool setFloat(const char* key, float value);
@@ -33,6 +31,8 @@ public:
     uint32_t getSDFreeSpace();
 private:
     UnifiedStorage();
+    void init(bool sdEnable);
+    void deinit();
     bool isSPIFFSInit();
     bool isSDInit();
     bool m_bSDInited = false;

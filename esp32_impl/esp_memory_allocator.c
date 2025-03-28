@@ -9,7 +9,7 @@ void* psram_prefered_malloc(size_t size) {
     void* ptr = heap_caps_malloc(size, MALLOC_CAP_SPIRAM);
     if (ptr)
         return ptr; 
-    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
+    return heap_caps_malloc(size, MALLOC_CAP_DEFAULT);
 }
 
 void* psram_malloc(size_t size) {
@@ -27,5 +27,5 @@ void* dma_prefered_malloc(size_t size) {
     void* ptr = heap_caps_malloc(size, MALLOC_CAP_DMA);
     if (ptr)
         return ptr; 
-    return heap_caps_malloc(size, MALLOC_CAP_8BIT);
+    return heap_caps_malloc(size, MALLOC_CAP_DEFAULT);
 }
