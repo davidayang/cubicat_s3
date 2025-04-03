@@ -33,7 +33,7 @@ void UnifiedStorage::init(bool sd)
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
+        ESP_ERROR_CHECK(nvs_flash_init());
     }
     // init SPIFFS 
     if (!m_bFlashInited) {
@@ -45,6 +45,11 @@ void UnifiedStorage::init(bool sd)
             uint8_t spiffsCount = 0;
             while (partItr != NULL) {
                 const esp_partition_t* part = esp_partition_get(partItr);
+                // Todo: hack code to skip the model partition, need to be fixed
+                partItr = esp_partition_next(partItr);
+                if (strcmp(part->label, "model") == 0) {
+                    continue;
+                }
                 char basePath[32] = {0};
                 if (strlen(part->label) > 0) {
                     snprintf(basePath, sizeof(basePath), "/%s", part->label);
@@ -62,13 +67,12 @@ void UnifiedStorage::init(bool sd)
                 };
                 ret = esp_vfs_spiffs_register(&conf);
                 if (ret != ESP_OK) {
-                    LOGE("Failed to mount SPIFFS (%d), maybe no spiffs partition specified?\n", ret);
+                    LOGE("Failed to mount SPIFFS: [%s] (%d), maybe no spiffs partition specified?\n", part->label, ret);
                     m_bFlashInited = false;
                     break;
                 }
                 m_vFlashPartitions.push_back(basePath);
                 spiffsCount++;
-                partItr = esp_partition_next(partItr);
             }
             esp_partition_iterator_release(partItr);
         }
@@ -131,7 +135,11 @@ nvs_handle_t nvsWriteHandle() {
 }
 nvs_handle_t nvsReadHandle() {
     nvs_handle_t nvs_handle;
-    ESP_ERROR_CHECK(nvs_open(NVSNS, NVS_READONLY, &nvs_handle));
+    esp_err_t ret = nvs_open(NVSNS, NVS_READONLY, &nvs_handle);
+    if (ret != ESP_OK) {
+        // use NVS_READWRITE to create namespace if not exist
+        return nvsWriteHandle();
+    }
     return nvs_handle;
 }
 bool UnifiedStorage::setString(const char* key, const char* value) {

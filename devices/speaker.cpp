@@ -6,6 +6,8 @@
 #include <string.h>
 #include "core/memory_allocator.h"
 
+#define PLAY_LOCK std::lock_guard<std::mutex> lock(m_mutex);
+
 void volumeAdjust(int16_t* buf, size_t length, float volumePercent) {
     if (volumePercent == 1.0f) {
         return;
@@ -96,6 +98,8 @@ void Speaker::setEnable(bool enable)
     if (m_bEnable == enable) {
         return;
     }
+    LOGE("Speaker setEnable %d\n", enable);
+    PLAY_LOCK
     gpio_set_level((gpio_num_t)m_enablePin, enable);
     m_bEnable = enable;
     if (enable) {
@@ -128,35 +132,44 @@ void Speaker::playFile(const char* filename, bool loop) {
     }, [this]() {
         this->setEnable(false);
     });
-    setEnable(true);
-    m_pAudioPlayer->play(filename, loop);
+    if (m_pAudioPlayer->play(filename, loop)) {
+        setEnable(true);
+    }
 }
 
 void Speaker::playRaw(const int16_t* data, size_t len, uint8_t channels) {
-    const int SegmentSize = 128;
+    if (!isEnable()) {
+        LOGW("Speaker not enable! play aborted\n");
+        return;
+    }
+    m_bPlaying = true;
+    PLAY_LOCK
+    const int CacheSize = 256;
     size_t dateRemain = len;
-    int16_t buffer[SegmentSize];
+    static int16_t buffer[CacheSize];
+    size_t batchSize = channels == 2 ? CacheSize : (CacheSize / 2);
     int16_t* ptr = (int16_t*)data;
     while (dateRemain > 0)
     {
-        size_t writeSize = dateRemain > SegmentSize ? SegmentSize : dateRemain;
-        size_t buffLen = writeSize * sizeof(int16_t);
+        size_t dataLength = dateRemain > batchSize ? batchSize : dateRemain;
+        size_t bufferLength = dataLength;
         if (channels == 1) {
-            writeSize /= 2;
-            for (size_t i = 0; i < writeSize; i++) {
+            bufferLength *= 2;
+            for (size_t i = 0; i < dataLength; i++) {
                 int16_t v = *ptr++;
                 buffer[i*2] = v;
                 buffer[i*2 + 1] = v;
             }
         } else {
-            memcpy(buffer, ptr, writeSize * sizeof(int16_t));
-            ptr += writeSize;
+            memcpy(buffer, ptr, bufferLength * sizeof(int16_t));
+            ptr += dataLength;
         }
-        volumeAdjust(buffer, buffLen, m_fVolume);
+        volumeAdjust(buffer, bufferLength, m_fVolume);
         size_t bytesWritten = 0;
-        i2s_channel_write(m_channelHandle, (const char*)buffer, buffLen, &bytesWritten, portMAX_DELAY);
-        dateRemain -= writeSize;
+        i2s_channel_write(m_channelHandle, (const char*)buffer, bufferLength * sizeof(int16_t), &bytesWritten, portMAX_DELAY);
+        dateRemain -= dataLength;
     }
+    m_bPlaying = false;
 }
 
 void Speaker::setVolume(float volume) {
@@ -168,4 +181,18 @@ void Speaker::setVolume(float volume) {
 void Speaker::stopPlay() {
     if (m_pAudioPlayer)
         m_pAudioPlayer->stop();
+}
+
+bool Speaker::isPlaying() {
+    return m_bPlaying;
+}
+bool Speaker::isEnable() {
+    return m_bEnable;
+}
+
+uint16_t Speaker::getSampleRate() {
+    return m_config.clk_cfg.sample_rate_hz;
+}
+uint8_t Speaker::getChannels() {
+    return m_config.slot_cfg.slot_mode;
 }

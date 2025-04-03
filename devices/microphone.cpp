@@ -4,15 +4,15 @@
 #include "utils/logger.h"
 #include "utils/helper.h"
 
-#define BuffLen  1024 * 16
-
 uint32_t buffID = 0;
 
 struct AudioTaskParam {
     i2s_chan_handle_t handle;
     char* cacheBuffer;
+    int bufLen;
     uint8_t* audioBuffer;
     SemaphoreHandle_t buffLock;
+    // SemaphoreHandle_t workingLock;
     bool*           stopSign;
 };
 
@@ -36,6 +36,7 @@ void audioReadTask(void *param)
     uint8_t* audioBuffer = audioParam->audioBuffer;
     SemaphoreHandle_t buffLock = audioParam->buffLock;
     bool* stopSign = audioParam->stopSign;
+    int bufLen = audioParam->bufLen;
     delete audioParam;
     while (1)
     {
@@ -43,7 +44,7 @@ void audioReadTask(void *param)
             vTaskDelay(pdTICKS_TO_MS(10));
         } else {
             size_t bytesRead = 0;
-            i2s_channel_read(handle, cacheBuffer, BuffLen, &bytesRead, portMAX_DELAY);
+            i2s_channel_read(handle, cacheBuffer, bufLen, &bytesRead, portMAX_DELAY);
             if (xSemaphoreTake(buffLock, 1000) == pdPASS) {
                 i2s_adc_data_scale(audioBuffer, cacheBuffer, bytesRead);
                 buffID++;
@@ -117,20 +118,13 @@ void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
         };
         ESP_ERROR_CHECK(i2s_channel_init_std_mode(m_channelHandle, &m_stdConfig));
     }
-    if (esp_psram_init() == ESP_OK) {
-        m_cacheBuffer = (char *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
-        m_audioBuffer = (uint8_t *)heap_caps_malloc(BuffLen, MALLOC_CAP_SPIRAM);
-    } else {
-        m_cacheBuffer = (char *)calloc(BuffLen, sizeof(char));
-        m_audioBuffer = (uint8_t *)calloc(BuffLen, sizeof(char));
-    }
+    resizeBuffer(m_nBuffLen);
     if (!m_cacheBuffer || !m_audioBuffer) {
         LOGE("Microphone malloc buffer failed");
         i2s_del_channel(m_channelHandle);
         return;
     }
     m_buffLock = xSemaphoreCreateMutex();
-    xSemaphoreGive(m_buffLock);
     auto id = xPortGetCoreID();
     int coreId = (id + 1) % portNUM_PROCESSORS;
     AudioTaskParam* param = new AudioTaskParam();
@@ -139,7 +133,9 @@ void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
     param->audioBuffer = m_audioBuffer;
     param->buffLock = m_buffLock;
     param->stopSign = &m_bStop;
-    if (xTaskCreatePinnedToCore(audioReadTask, "audio task", 1024*4, param, 1, &m_taskHandle, coreId) != pdPASS) {
+    param->bufLen = m_nBuffLen;
+    if (xTaskCreatePinnedToCoreWithCaps(audioReadTask, "audio task", 1024*4,
+         param, 1, &m_taskHandle, coreId, MALLOC_CAP_SPIRAM) != pdPASS) {
         LOGE("Microphone create task failed");
         i2s_del_channel(m_channelHandle);
         free(m_cacheBuffer);
@@ -153,16 +149,21 @@ void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
     m_bInited = true;
 }
 
-AudioBuffer Microphone::getAudioBuffer()
+AudioBuffer Microphone::popAudioBuffer()
 {
-    AudioBuffer buf = {nullptr, 0, 0};
-    if (m_bInited) {
+    AudioBuffer buf;
+    if (m_bInited && !m_bStop) {
         if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
-            buf.buffer = m_audioBuffer;
-            buf.len = BuffLen;
-            buf.id = buffID;
+            if (buffID > m_lastBuffID) {
+                buf.data = m_audioBuffer;
+                buf.len = m_nBuffLen;
+                buf.id = buffID;
+                m_lastBuffID = buffID;
+            }
             xSemaphoreGive(m_buffLock);
         }
+    } else {
+        LOGE("Microphone not inited or not running %d %d\n", m_bInited, m_bStop);
     }
     return buf;
 }
@@ -207,4 +208,16 @@ void Microphone::shutdown()
         vSemaphoreDelete(m_buffLock);
         m_buffLock = nullptr;
     }
+}
+
+void Microphone::resizeBuffer(uint32_t size) {
+    if (m_audioBuffer && m_nBuffLen == size) {
+        return;
+    }
+    stop();
+    free(m_cacheBuffer);
+    free(m_audioBuffer);
+    m_cacheBuffer = (char*)psram_prefered_malloc(size);
+    m_audioBuffer = (uint8_t*)psram_prefered_malloc(size);
+    m_nBuffLen = size;
 }

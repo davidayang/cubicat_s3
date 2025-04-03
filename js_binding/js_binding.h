@@ -8,6 +8,7 @@ typedef void (*RegisterCallback)();
 
 // partition name where js files are stored
 void JSBindingInit(const char* fileDir, RegisterCallback registerCallback = nullptr);
+void JSBindingDeinit();
 void JSCall(const char* funcName, int nargs, ...);
 void JSShowErrorMsg();
 

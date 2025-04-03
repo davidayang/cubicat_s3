@@ -5,8 +5,8 @@
 
 #define STRINGIFY(x) #x
 #define StringHash(s) std::hash<std::string>{}(s)
-struct mjs *mjs = NULL;
-std::unordered_map<uint32_t, void*>* g_APIMap;
+struct mjs *mjs = nullptr;
+std::unordered_map<uint32_t, void*>* g_APIMap = nullptr;
 std::set<std::string> g_errorMsgs;
 
 extern void Register_CUBICAT_API();
@@ -84,6 +84,14 @@ void JSBindingInit(const char *fileDir, RegisterCallback registerCallback)
     }
     mjs_gc(mjs, 1);
     CUBICAT.storage.partitionSelect(oldPartition.c_str());
+}
+void JSBindingDeinit()
+{
+    if (mjs) {
+        mjs_destroy(mjs);
+        delete g_APIMap;
+        g_errorMsgs.clear();
+    }
 }
 
 void JSCall(const char *func, int nargs, ...) {

@@ -21,7 +21,7 @@ struct AudioTaskData
     AudioPlayer* player;
 };
 
-void AudioTask(void* arg) {
+void AudioPlayerTask(void* arg) {
     QueueHandle_t playQueue = (QueueHandle_t)arg;
     while (1) {
         AudioTaskData data;
@@ -42,7 +42,7 @@ AudioPlayer::~AudioPlayer() {
 bool AudioPlayer::init() {
     if (!m_playTaskQueue) {
         m_playTaskQueue = xQueueCreate(1, sizeof(AudioTaskData));
-        if (xTaskCreatePinnedToCore(AudioTask, "audio task", 1024*8, m_playTaskQueue, 1, &m_taskHandle, getSubCoreId()) != pdPASS) {
+        if (xTaskCreatePinnedToCore(AudioPlayerTask, "audio task", 1024*8, m_playTaskQueue, 1, &m_taskHandle, getSubCoreId()) != pdPASS) {
             LOGE("Audio player init failed");
             vQueueDelete(m_playTaskQueue);
             m_playTaskQueue = nullptr;
@@ -62,18 +62,18 @@ void AudioPlayer::clear() {
         m_playTaskQueue = nullptr;
     }
 }
-void AudioPlayer::play(const char* filename, bool loop) {
+bool AudioPlayer::play(const char* filename, bool loop) {
     if (m_bPlaying) {
         stop();
     }
     if (!init()) {
-        return;
+        return false;
     }
     m_bLoop = loop;
     m_pAudioFile = openFileFlash(filename, true);
     if (!m_pAudioFile) {
         LOGW("Speaker open file %s failed\n", filename);
-        return;
+        return false;
     }
     if (endsWith(filename, ".mp3")) {
         m_eCodec = CODEC_MP3;
@@ -81,23 +81,24 @@ void AudioPlayer::play(const char* filename, bool loop) {
         m_eCodec = CODEC_WAV;
     }
     playImmediately();
+    return true;
 }
 void AudioPlayer::playImmediately() {
     if (!m_pAudioFile) {
         return;
     }
-    m_audioBuffer.init();
+    m_audioBuffer.allocate(1600);
     rewind(m_pAudioFile);
     m_bPlaying = false;
     if (m_eCodec == CODEC_MP3) {
         MP3Decoder_AllocateBuffers();
         // 读取文件数据到缓冲区
-        m_audioBuffer.append(m_pAudioFile);
-        while (m_audioBuffer.pos > 0) {
+        m_audioBuffer.fill(m_pAudioFile);
+        while (m_audioBuffer.len > 0) {
             int syncOffset = 0;
             if (!m_bPlaying) {
                 // 查找帧同步头
-                syncOffset = MP3FindSyncWord(m_audioBuffer.data, m_audioBuffer.pos);
+                syncOffset = MP3FindSyncWord(m_audioBuffer.data, m_audioBuffer.len);
                 if (syncOffset < 0) {
                     LOGW("Sync word not found, skipping bytes.\n");
                     stop();
@@ -112,7 +113,7 @@ void AudioPlayer::playImmediately() {
                 }
             }
             m_audioBuffer.shift(syncOffset);  // 移动剩余数据到缓冲区头部
-            m_audioBuffer.append(m_pAudioFile);
+            m_audioBuffer.fill(m_pAudioFile);
         }
     } else if (m_eCodec == CODEC_WAV) {
 
@@ -143,7 +144,7 @@ void AudioPlayer::setCallback(SampleRateCallback sampleRateCB, BitDepthCallback 
 
 bool AudioPlayer::proceed() {
     // 解码当前帧
-    int bytesLeft = m_audioBuffer.pos;
+    int bytesLeft = m_audioBuffer.len;
     int len = bytesLeft;
     uint8_t* buf = m_audioBuffer.data;
     short outbuf[1152*2];
@@ -177,7 +178,7 @@ bool AudioPlayer::proceed() {
         m_bitDepthCallback(bitDepth);
     if (m_playPCMCallback)
         m_playPCMCallback(outbuf, samps, channels);
-    int readBytes = m_audioBuffer.append(m_pAudioFile);
+    int readBytes = m_audioBuffer.fill(m_pAudioFile);
     if (readBytes <= 0) { // eof
         onFinish();
         return false;

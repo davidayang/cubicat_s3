@@ -4,12 +4,7 @@
 #include "driver/i2s_types.h"
 #include <driver/i2s_pdm.h>
 #include <driver/i2s_std.h>
-
-struct AudioBuffer {
-    const uint8_t* buffer = nullptr;
-    size_t len = 0;
-    uint32_t id = 0;
-};
+#include "audio_buffer.h"
 
 class Microphone {
     friend class Cubicat;
@@ -18,11 +13,13 @@ public:
     ~Microphone();
 
     void setSampleRate(uint16_t sampleRate);
-    AudioBuffer getAudioBuffer();
+    void resizeBuffer(uint32_t len);
+    AudioBuffer popAudioBuffer();
     // 如果使用pdm模式，ws不需要配置,且bus number必须为0,因为esp32s3的pdm模式只有I2S_NUM_0支持
     void stop();
     void start();
     void shutdown();
+    bool isRunning() { return !m_bStop; }
 private:
     Microphone(uint16_t sampleRate = 16000, uint8_t bitPerSample = 16);
     void init(int clk, int din, int ws = -1, int busNum = I2S_NUM_0, bool pdm = true);
@@ -38,5 +35,7 @@ private:
     uint8_t*            m_audioBuffer = nullptr;
     TaskHandle_t        m_taskHandle = nullptr;
     SemaphoreHandle_t   m_buffLock = nullptr;
+    uint32_t            m_lastBuffID = 0;
+    uint32_t            m_nBuffLen = 1024 * 16;
 };
 #endif

@@ -26,6 +26,7 @@ public:
     static bool isConnected() { return m_sState == CONNECT_SUCCESS; }
     static bool isConnecting() { return m_sState == CONNECTING; }
     static void disconnect();
+    std::string getSSID() { return m_sSSID; }
 private:
     Wifi();
     static void init();
