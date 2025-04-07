@@ -3,6 +3,7 @@
 #include <driver/i2s_std.h>
 #include "audio_player/audio_player.h"
 #include <atomic>
+#include <mutex>
 
 class Speaker{
     friend class Cubicat;
@@ -33,7 +34,7 @@ private:
     i2s_std_config_t    m_config;
     i2s_chan_handle_t   m_channelHandle = nullptr;
     AudioPlayer*        m_pAudioPlayer = nullptr;
-    std::mutex          m_mutex;
+    std::recursive_mutex m_mutex;
 };
 
 #endif

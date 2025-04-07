@@ -3,19 +3,9 @@
 #include <string.h>
 #include "utils/logger.h"
 #include "utils/helper.h"
+#include <atomic>
 
-uint32_t buffID = 0;
-
-struct AudioTaskParam {
-    i2s_chan_handle_t handle;
-    char* cacheBuffer;
-    int bufLen;
-    uint8_t* audioBuffer;
-    SemaphoreHandle_t buffLock;
-    // SemaphoreHandle_t workingLock;
-    bool*           stopSign;
-};
-
+#define AUDIO_BUFFER_SIZE 1024 * 16
 void i2s_adc_data_scale(uint8_t *d_buff, char *s_buff, uint32_t len)
 {
     uint32_t j = 0;
@@ -28,29 +18,12 @@ void i2s_adc_data_scale(uint8_t *d_buff, char *s_buff, uint32_t len)
     }
 }
 
-void audioReadTask(void *param)
+void AudioReadTask(void *param)
 {
-    AudioTaskParam* audioParam = (AudioTaskParam *)param;
-    i2s_chan_handle_t handle = audioParam->handle;
-    char* cacheBuffer = audioParam->cacheBuffer;
-    uint8_t* audioBuffer = audioParam->audioBuffer;
-    SemaphoreHandle_t buffLock = audioParam->buffLock;
-    bool* stopSign = audioParam->stopSign;
-    int bufLen = audioParam->bufLen;
-    delete audioParam;
+    Microphone* mic = (Microphone*)param;
     while (1)
     {
-        if (*stopSign) {
-            vTaskDelay(pdTICKS_TO_MS(10));
-        } else {
-            size_t bytesRead = 0;
-            i2s_channel_read(handle, cacheBuffer, bufLen, &bytesRead, portMAX_DELAY);
-            if (xSemaphoreTake(buffLock, 1000) == pdPASS) {
-                i2s_adc_data_scale(audioBuffer, cacheBuffer, bytesRead);
-                buffID++;
-                xSemaphoreGive(buffLock);
-            }
-        }
+        mic->readData();
     }
 }
 
@@ -118,48 +91,33 @@ void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
         };
         ESP_ERROR_CHECK(i2s_channel_init_std_mode(m_channelHandle, &m_stdConfig));
     }
-    resizeBuffer(m_nBuffLen);
-    if (!m_cacheBuffer || !m_audioBuffer) {
+    m_audioBuffer.allocate(AUDIO_BUFFER_SIZE);
+    if (!m_audioBuffer.data) {
         LOGE("Microphone malloc buffer failed");
         i2s_del_channel(m_channelHandle);
         return;
     }
     m_buffLock = xSemaphoreCreateMutex();
-    auto id = xPortGetCoreID();
-    int coreId = (id + 1) % portNUM_PROCESSORS;
-    AudioTaskParam* param = new AudioTaskParam();
-    param->handle = m_channelHandle;
-    param->cacheBuffer = m_cacheBuffer;
-    param->audioBuffer = m_audioBuffer;
-    param->buffLock = m_buffLock;
-    param->stopSign = &m_bStop;
-    param->bufLen = m_nBuffLen;
-    if (xTaskCreatePinnedToCoreWithCaps(audioReadTask, "audio task", 1024*4,
-         param, 1, &m_taskHandle, coreId, MALLOC_CAP_SPIRAM) != pdPASS) {
+    if (xTaskCreatePinnedToCoreWithCaps(AudioReadTask, "audio task", 1024*4,
+         this, 1, &m_taskHandle, getSubCoreId(), MALLOC_CAP_SPIRAM) != pdPASS) {
         LOGE("Microphone create task failed");
         i2s_del_channel(m_channelHandle);
-        free(m_cacheBuffer);
-        free(m_audioBuffer);
-        m_cacheBuffer = nullptr;
-        m_audioBuffer = nullptr;
-        delete param;
         vSemaphoreDelete(m_buffLock);
         return;
     }
     m_bInited = true;
 }
 
-AudioBuffer Microphone::popAudioBuffer()
+std::vector<uint8_t> Microphone::popAudioBuffer(size_t size)
 {
-    AudioBuffer buf;
+    std::vector<uint8_t> buf;
     if (m_bInited && !m_bStop) {
+        if (size > m_audioBuffer.len || size == 0) {
+            size = m_audioBuffer.len;
+        }
         if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
-            if (buffID > m_lastBuffID) {
-                buf.data = m_audioBuffer;
-                buf.len = m_nBuffLen;
-                buf.id = buffID;
-                m_lastBuffID = buffID;
-            }
+            buf = std::move(std::vector<uint8_t>(m_audioBuffer.data, m_audioBuffer.data + size));
+            m_audioBuffer.shift(size);
             xSemaphoreGive(m_buffLock);
         }
     } else {
@@ -169,6 +127,7 @@ AudioBuffer Microphone::popAudioBuffer()
 }
 void Microphone::stop()
 {
+    LOGI("Microphone stop\n");
     if (m_bStop)
         return;
     m_bStop = true;
@@ -180,7 +139,6 @@ void Microphone::start()
     if (!m_bStop)
         return;
     m_bStop = false;
-    buffID = 0;
     if (m_channelHandle)
         i2s_channel_enable(m_channelHandle);
 }
@@ -192,14 +150,6 @@ void Microphone::shutdown()
         vTaskDelete(m_taskHandle);
         m_taskHandle = nullptr;
     }
-    if (m_cacheBuffer) {
-        free(m_cacheBuffer);
-        m_cacheBuffer = nullptr;
-    }
-    if (m_audioBuffer) {
-        free(m_audioBuffer);
-        m_audioBuffer = nullptr;
-    }
     if (m_channelHandle) {
         i2s_del_channel(m_channelHandle);
         m_channelHandle = nullptr;
@@ -210,14 +160,14 @@ void Microphone::shutdown()
     }
 }
 
-void Microphone::resizeBuffer(uint32_t size) {
-    if (m_audioBuffer && m_nBuffLen == size) {
-        return;
+void Microphone::readData() {
+    size_t bytesRead = 0;
+    char cacheBuffer[512];
+    uint8_t scaledBuffer[512];
+    i2s_channel_read(m_channelHandle, cacheBuffer, sizeof(cacheBuffer), &bytesRead, portMAX_DELAY);
+    if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
+        i2s_adc_data_scale(scaledBuffer, cacheBuffer, bytesRead);
+        m_audioBuffer.append(scaledBuffer, bytesRead);
+        xSemaphoreGive(m_buffLock);
     }
-    stop();
-    free(m_cacheBuffer);
-    free(m_audioBuffer);
-    m_cacheBuffer = (char*)psram_prefered_malloc(size);
-    m_audioBuffer = (uint8_t*)psram_prefered_malloc(size);
-    m_nBuffLen = size;
 }

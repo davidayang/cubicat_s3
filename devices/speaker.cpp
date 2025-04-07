@@ -5,8 +5,9 @@
 #include "audio_player/mp3_decoder/mp3_decoder.h"
 #include <string.h>
 #include "core/memory_allocator.h"
+#include <mutex>
 
-#define PLAY_LOCK std::lock_guard<std::mutex> lock(m_mutex);
+#define PLAY_LOCK std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
 void volumeAdjust(int16_t* buf, size_t length, float volumePercent) {
     if (volumePercent == 1.0f) {
@@ -75,6 +76,7 @@ void Speaker::init(int bclk, int ws, int dout, int enable, int busNum)
         },
     };
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG((i2s_port_t)busNum, I2S_ROLE_MASTER);
+    chan_cfg.auto_clear = true;
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &m_channelHandle, nullptr));
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(m_channelHandle, &m_config));
     gpio_set_direction((gpio_num_t)m_enablePin, GPIO_MODE_OUTPUT);
