@@ -50,8 +50,10 @@ public:
 protected:
     Mesh(T* vertices, uint16_t iVertexCount, uint16_t* pIndices, uint16_t iIndexCount, bool manageData)
     : m_pVertices(vertices), m_pIndices(pIndices), m_bDataManaged(manageData), m_iVertexCount(iVertexCount), m_iIndexCount(iIndexCount) {}
-    T*          m_pVertices;
-    uint16_t*   m_pIndices;
+    T*          m_pVertices = nullptr;
+    uint16_t    m_nVertexBufferSize = 0;
+    uint16_t*   m_pIndices = nullptr;
+    uint16_t    m_nIndexBufferSize = 0;
     bool        m_bDataManaged;
     uint16_t    m_iVertexCount;
     uint16_t    m_iIndexCount;
@@ -59,11 +61,12 @@ protected:
 
 template <class T, class U>
 void Mesh<T,U>::updateIndices(uint16_t* pIndices, uint16_t indexCount) {
-    if (indexCount > m_iIndexCount) {
+    if (indexCount > m_nIndexBufferSize) {
         if (m_pIndices) free(m_pIndices);
         m_pIndices = (uint16_t*)psram_prefered_malloc(indexCount * sizeof(uint16_t));
-        m_iIndexCount = indexCount;
+        m_nIndexBufferSize = indexCount;
     }
+    m_iIndexCount = indexCount;
     memcpy(m_pIndices, pIndices, indexCount * sizeof(uint16_t));
 }
 template <class T, class U>
@@ -78,12 +81,13 @@ void Mesh<T, U>::updateUVs(float* uvs, uint16_t uvCount) {
 // Specialization Mesh class for Vertex2
 template <>
 inline void Mesh<Vertex2, Vector2f>::updateVertices(float* pos, uint16_t vertexCount) {
-    if (vertexCount > m_iVertexCount) {
+    if (vertexCount > m_nVertexBufferSize) {
         if (m_pVertices && m_bDataManaged) free(m_pVertices);
         m_pVertices = (Vertex2*)psram_prefered_malloc(vertexCount * sizeof(Vertex2));
-        m_iVertexCount = vertexCount;
+        m_nVertexBufferSize = vertexCount;
         m_bDataManaged = true;
     }
+    m_iVertexCount = vertexCount;
     for (int i = 0; i < vertexCount; i++) {
         m_pVertices[i].x = pos[i * 2];
         m_pVertices[i].y = pos[i * 2 + 1];

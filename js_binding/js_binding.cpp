@@ -1,12 +1,10 @@
 #include "js_binding.h"
-#include "3rd_party/mjs/mjs.h"
-#include "3rd_party/mjs/src/mjs_core.h"
 #include "cubicat.h"
 
 #define STRINGIFY(x) #x
 #define StringHash(s) std::hash<std::string>{}(s)
-struct mjs *mjs = nullptr;
-std::unordered_map<uint32_t, void*>* g_APIMap = nullptr;
+struct mjs *mjs = NULL;
+std::unordered_map<uint32_t, void*>* g_APIMap;
 std::set<std::string> g_errorMsgs;
 
 extern void Register_CUBICAT_API();
@@ -51,15 +49,12 @@ ResourceManager* getResourceManager() {
 Display* getLCD() {
     return &CUBICAT.lcd;
 }
-
 void *cubicat_dlsym(void *handle, const char *name)
 {
     auto itr = g_APIMap->find(StringHash(name));
     if (itr != g_APIMap->end())
         return itr->second;
-    std::string err = "API not found: " + std::string(name);
-    LOGE("%s\n", err.c_str());
-    g_errorMsgs.insert(err);
+    LOGE("API not found: %s\n", name);
     return NULL;
 }
 
@@ -84,33 +79,6 @@ void JSBindingInit(const char *fileDir, RegisterCallback registerCallback)
     }
     mjs_gc(mjs, 1);
     CUBICAT.storage.partitionSelect(oldPartition.c_str());
-}
-void JSBindingDeinit()
-{
-    if (mjs) {
-        mjs_destroy(mjs);
-        delete g_APIMap;
-        g_errorMsgs.clear();
-    }
-}
-
-void JSCall(const char *func, int nargs, ...) {
-    if (!mjs)
-        return;
-    assert(nargs <= 6);
-    mjs_val_t res;
-    va_list ap;
-    mjs_val_t args[6];
-    va_start(ap, nargs);
-    for (int i = 0; i < nargs; i++) {
-      args[i] = va_arg(ap, mjs_val_t);
-    }
-    va_end(ap);
-    if (mjs_call_func(mjs, &res, func, nargs, args) != MJS_OK)
-    {
-        LOGE("JSCall failed call function: [%s] msg: %s\n", func, mjs->error_msg);
-        g_errorMsgs.insert(mjs->error_msg);
-    }
 }
 
 void JSShowErrorMsg() {

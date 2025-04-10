@@ -74,7 +74,7 @@ void Cubicat::loop(bool present)
     if (lastTime == 0)
         lastTime = now;
     uint32_t elapse = now - lastTime;
-    JSCall("loop", 1, elapse * 0.001f);
+    MJS_CALL("loop", 1, elapse * 0.001);
     JSShowErrorMsg();
     lastTime = now;
 #endif

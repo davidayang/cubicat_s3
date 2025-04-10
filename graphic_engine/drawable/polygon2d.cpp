@@ -11,8 +11,8 @@ uint16_t g_nWorld2DVertexCacheSize = 0;
 { \
     Edge& edge = m_vET[m_nETSize++]; \
     if (p0.y != p1.y) { \
-        Vertex2& vLow = p0.y < p1.y ? p0 : p1; \
-        Vertex2& vHigh = p0.y < p1.y ? p1 : p0; \
+        const Vertex2& vLow = p0.y < p1.y ? p0 : p1; \
+        const Vertex2& vHigh = p0.y < p1.y ? p1 : p0; \
         edge.x = vLow.x; \
         edge.yMin = vLow.y; \
         edge.yMax = vHigh.y; \
@@ -41,16 +41,25 @@ Polygon2D::~Polygon2D() {
 void Polygon2D::caculateEdges() {
     if (!m_pMesh)
         return;
-    m_nETSize = 0;
     int vCount = m_pMesh->getVertexCount();
     if (vCount == 0)
         return;
+    m_nETSize = 0;
     if (vCount > g_nWorld2DVertexCacheSize) {
         if (g_vWorld2DVertexCache) {
             heap_caps_free(g_vWorld2DVertexCache);
         }
         g_vWorld2DVertexCache = (Vertex2*)psram_prefered_malloc(vCount * sizeof(Vertex2));
         g_nWorld2DVertexCacheSize = vCount;
+    }
+    int faceCount = m_pMesh->getFaceCount();
+    int maxEdgeCount = faceCount * 3;
+    if (maxEdgeCount > m_nETBufferSize) {
+        if (m_vET) {
+            heap_caps_free(m_vET);
+        }
+        m_vET = (Edge*)psram_prefered_malloc(maxEdgeCount * sizeof(Edge));
+        m_nETBufferSize = maxEdgeCount;
     }
     // transform vertices to world pos
     auto scale = getScale();
@@ -90,16 +99,12 @@ void Polygon2D::caculateEdges() {
     if (m_region.w <= 1 || m_region.h <= 1) {
         return;
     }
-    int faceCount = m_pMesh->getFaceCount();
-    if (!m_vET) {
-        m_vET = (Edge*)psram_prefered_malloc(faceCount * 3 * sizeof(Edge));
-    }
     uint16_t idx0, idx1, idx2;
     for (int i = 0; i < faceCount; i++) {
         m_pMesh->getFaceVerticesIndex(i, idx0, idx1, idx2);
-        auto& p0 = g_vWorld2DVertexCache[idx0];
-        auto& p1 = g_vWorld2DVertexCache[idx1];
-        auto& p2 = g_vWorld2DVertexCache[idx2];
+        const auto& p0 = g_vWorld2DVertexCache[idx0];
+        const auto& p1 = g_vWorld2DVertexCache[idx1];
+        const auto& p2 = g_vWorld2DVertexCache[idx2];
         CREATE_EDGE(p0, p1);
         CREATE_EDGE(p1, p2);
         CREATE_EDGE(p2, p0);

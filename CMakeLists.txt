@@ -13,7 +13,7 @@ endif()
 if (CONFIG_JAVASCRIPT_ENABLE)
     file(GLOB_RECURSE JS_BINDING_SRCS "js_binding/*.cpp")
     list(APPEND SRCS ${JS_BINDING_SRCS})
-    list(APPEND SRCS "3rd_party/mjs/mjs.c" "3rd_party/mjs/hashmap.c")
+    list(APPEND SRCS "3rd_party/mjs/mjs.c")
 endif()
 idf_component_register(SRCS ${SRCS}
                        REQUIRES esp_driver_gpio driver esp_wifi esp_timer

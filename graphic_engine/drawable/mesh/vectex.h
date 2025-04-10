@@ -7,6 +7,12 @@ namespace cubicat{
 struct Vertex2
 {
     Vertex2() : x(0), y(0), u(0), v(0) {}
+    Vertex2(const Vertex2& other) {
+        x = other.x;
+        y = other.y;
+        u = other.u;
+        v = other.v;
+    }
     union {
         struct {
             float x,y;

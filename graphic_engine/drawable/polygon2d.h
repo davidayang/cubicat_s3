@@ -41,6 +41,7 @@ protected:
     void updateRegion() override;
     Mesh2DPtr                   m_pMesh;
     Edge*                       m_vET = nullptr;
+    uint16_t                    m_nETBufferSize = 0;
     uint16_t                    m_nETSize = 0;
     uint16_t                    m_nLastScanedIndex = 0;
 };

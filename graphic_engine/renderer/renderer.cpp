@@ -243,17 +243,14 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
             }
             // two intersection points are close than 1 pixel
             float len = p1.x - p0.x;
-            if (len < 1.0f) {
-                len = 1.0f;
-            }
-            int startPos = p0.x;
+            int startPos = floor(p0.x);
             int endPos = p1.x;
             float u_step = (p1.u - p0.u) / len;
             float v_step = (p1.v - p0.v) / len;
             float u_offset = u_step * (startPos - p0.x);
             float v_offset = v_step * (startPos - p0.x);
             // handle out of bounding box
-            if (p0.x < bbox.x) {
+            if (UNLIKELY(p0.x < bbox.x)) {
                 startPos = bbox.x;
                 u_offset = u_step * (bbox.x - p0.x);
                 v_offset = v_step * (bbox.x - p0.x);
@@ -323,7 +320,7 @@ void Renderer::draw(Drawable *drawable)
     uint8_t r = 0;
     uint8_t g = 0;
     uint8_t b = 0;
-    uint8_t a = 0;
+    uint8_t a = 255;
     uint32_t color = 0;
     uint32_t col = material->getColor();
     uint8_t col_r = col >> 11;

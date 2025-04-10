@@ -17,7 +17,6 @@
  */
 
 #include "mjs.h"
-#include "hashmap.h"
 #ifdef MJS_MODULE_LINES
 #line 1 "src/common/platform.h"
 #endif
@@ -3075,7 +3074,6 @@ struct mjs {
   unsigned inhibit_gc : 1;
   unsigned need_gc : 1;
   unsigned generate_jsc : 1;
-  map_t global_func_map;
 };
 
 /*
@@ -6406,6 +6404,7 @@ typedef ffi_word_t (*wffff_t)(float, float, float, float);
 typedef ffi_word_t (*wwffff_t)(ffi_word_t, float, float, float, float);
 typedef ffi_word_t (*wwwfff_t)(ffi_word_t, ffi_word_t, float, float, float);
 typedef ffi_word_t (*wwwwff_t)(ffi_word_t, ffi_word_t, ffi_word_t, float, float);
+typedef ffi_word_t (*wwwwwf_t)(ffi_word_t, ffi_word_t, ffi_word_t, ffi_word_t, float);
 typedef ffi_word_t (*wwwffw_t)(ffi_word_t, ffi_word_t, float, float, ffi_word_t);
 typedef ffi_word_t (*wwwwffw_t)(ffi_word_t, ffi_word_t, ffi_word_t, float, float, ffi_word_t);
 
@@ -6497,7 +6496,7 @@ typedef float (*ffff_t)(float, float, float);
         const char* p2 = IS_F(args[2]) ? "f" : (IS_D(args[2]) ? "d" : "w"); \
         const char* p3 = IS_F(args[3]) ? "f" : (IS_D(args[3]) ? "d" : "w"); \
         const char* p4 = IS_F(args[4]) ? "f" : (IS_D(args[4]) ? "d" : "w"); \
-        const char* p5 = IS_F(args[5]) ? "f" : (IS_D(args[5]) ? "d" : "w"); \      
+        const char* p5 = IS_F(args[5]) ? "f" : (IS_D(args[5]) ? "d" : "w"); \
         printf("function missing: %s %s %s %s %s %s res->ctype %d at line: %d\n", p0, p1, p2,p3,p4,p5,res->ctype, __LINE__); \
     }
 
@@ -6620,7 +6619,11 @@ int ffi_call(ffi_fn_t *func, int nargs, struct ffi_arg *res,
                 } else if (IS_W(args[0]) && IS_W(args[1]) && IS_F(args[2]) && IS_F(args[3]) && IS_W(args[4])) {
                     wwwffw_t f = (wwwffw_t) func;
                     r = f (W(args[0]), W(args[1]), F(args[2]), F(args[3]), W(args[4]));
-                } else {
+                } else if (IS_W(args[0]) && IS_W(args[1]) && IS_W(args[2]) && IS_W(args[3]) && IS_F(args[4])) {
+                    wwwwwf_t f = (wwwwwf_t) func;
+                    r = f (W(args[0]), W(args[1]), W(args[2]), W(args[3]), F(args[4]));
+                }
+                else {
                     FUNC_MISS
                     abort();
                 }
@@ -7669,7 +7672,6 @@ void mjs_destroy(struct mjs *mjs) {
   gc_arena_destroy(mjs, &mjs->object_arena);
   gc_arena_destroy(mjs, &mjs->property_arena);
   gc_arena_destroy(mjs, &mjs->ffi_sig_arena);
-  hashmap_free(mjs->global_func_map);
   free(mjs);
 }
 
@@ -7713,7 +7715,6 @@ struct mjs *mjs_create(void) {
   push_mjs_val(&mjs->scopes, global_object);
   mjs->vals.this_obj = MJS_UNDEFINED;
   mjs->vals.dataview_proto = MJS_UNDEFINED;
-  mjs->global_func_map = hashmap_new();
   return mjs;
 }
 
@@ -12157,14 +12158,6 @@ static mjs_err_t parse_function(struct pstate *p) {
   emit_init_offset(p);
 
   prologue = p->cur_idx;
-  if (name_provided) {
-    mjs_val_t* v = malloc(sizeof(mjs_val_t));
-    *v = prologue;
-    char* key = malloc(strlen(funcName)+1);
-    key[strlen(funcName)] = '\0';
-    strcpy(key, funcName);
-    hashmap_put(p->mjs->global_func_map, key, v);
-  }
 
   EXPECT(p, TOK_OPEN_PAREN);
   emit_byte(p, OP_NEW_SCOPE);
@@ -14423,56 +14416,4 @@ int mjs_get_offset_by_call_frame_num(struct mjs *mjs, int cf_num) {
     ret = mjs_get_int(mjs, val);
   }
   return ret;
-}
-mjs_err_t mjs_call_func(struct mjs* mjs, mjs_val_t* res, const char* func_name,int nargs, mjs_val_t* args) {
-    assert(nargs <= 6);
-    if (mjs->bcode_len == 0) {
-        return MJS_SYNTAX_ERROR;
-    }
-    mjs_val_t func;
-    mjs_val_t* val = NULL;
-    if (hashmap_get(mjs->global_func_map, func_name, &val) != MAP_OK) {
-        mjs_set_errorf(mjs, MJS_BAD_ARGS_ERROR, "function %s not found", func_name);
-        return MJS_BAD_ARGS_ERROR;
-    }
-    func = *val;
-    mjs_val_t r, prev_this_val, retval_stack_idx, *resp;
-    mjs_val_t this_val = MJS_UNDEFINED;
-    int i;
-    prev_this_val = mjs->vals.this_obj;
-
-    /* Push callable which will be later replaced with the return value */
-    mjs_push(mjs, func);
-    resp = vptr(&mjs->stack, -1);
-
-    /* Remember index by which return value should be written */
-    retval_stack_idx = mjs_mk_number(mjs, (double) mjs_stack_size(&mjs->stack));
-
-    // Push all arguments
-    for (i = 0; i < nargs; i++) {
-        mjs_push(mjs, args[i]);
-    }
-
-    /* Push this value to arg_stack, call_stack_push_frame() expects that */
-    push_mjs_val(&mjs->arg_stack, this_val);
-
-    /* Push call stack frame, just like OP_CALL does that */
-    call_stack_push_frame(mjs, MJS_BCODE_OFFSET_EXIT, retval_stack_idx);
-
-    size_t addr = mjs_get_func_addr(func);
-    mjs_execute(mjs, addr, &r);
-    if (res != NULL) *res = r;
-    /*
-    * If there was an error, we need to restore frame and do the cleanup
-    * which is otherwise done by OP_RETURN
-    */
-    if (mjs->error != MJS_OK) {
-        call_stack_restore_frame(mjs);
-
-        // Pop cell at which the returned value should've been written
-        mjs_pop(mjs);
-    }
-    mjs->vals.this_obj = prev_this_val;
-
-    return mjs->error;
 }

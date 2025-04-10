@@ -1053,8 +1053,6 @@ int mjs_get_lineno_by_offset(struct mjs *mjs, int offset);
  */
 int mjs_get_offset_by_call_frame_num(struct mjs *mjs, int cf_num);
 
-mjs_err_t mjs_call_func(struct mjs *mjs, mjs_val_t* res, const char* func_name, int nargs, mjs_val_t* args);
-
 #if defined(__cplusplus)
 }
 #endif /* __cplusplus */
