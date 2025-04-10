@@ -163,11 +163,11 @@ void Microphone::shutdown()
 void Microphone::readData() {
     size_t bytesRead = 0;
     char cacheBuffer[512];
-    uint8_t scaledBuffer[512];
     i2s_channel_read(m_channelHandle, cacheBuffer, sizeof(cacheBuffer), &bytesRead, portMAX_DELAY);
     if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
-        i2s_adc_data_scale(scaledBuffer, cacheBuffer, bytesRead);
-        m_audioBuffer.append(scaledBuffer, bytesRead);
+        // uint8_t scaledBuffer[512];
+        // i2s_adc_data_scale(scaledBuffer, cacheBuffer, bytesRead);
+        m_audioBuffer.append((uint8_t*)cacheBuffer, bytesRead);
         xSemaphoreGive(m_buffLock);
     }
 }
