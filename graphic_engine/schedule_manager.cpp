@@ -34,3 +34,9 @@ void ScheduleManager::removeSchedule(uint32_t scheduleId) {
         m_schedules.erase(itr);
     }
 }
+void ScheduleManager::removeAllSchedules() {
+    for (auto schedule : m_schedules) {
+        delete schedule;
+    }
+    m_schedules.clear();
+}

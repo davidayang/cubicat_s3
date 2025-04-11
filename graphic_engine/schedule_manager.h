@@ -45,7 +45,7 @@ public:
         return schedule->m_Id;
     }
     void removeSchedule(uint32_t scheduleId);
-
+    void removeAllSchedules();
 private:
     std::vector<Schedule *> m_schedules;
 };
