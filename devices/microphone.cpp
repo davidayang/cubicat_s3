@@ -112,10 +112,10 @@ std::vector<uint8_t> Microphone::popAudioBuffer(size_t size)
 {
     std::vector<uint8_t> buf;
     if (m_bInited && !m_bStop) {
-        if (size > m_audioBuffer.len || size == 0) {
-            size = m_audioBuffer.len;
-        }
-        if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
+        if (xSemaphoreTake(m_buffLock, portMAX_DELAY) == pdPASS) {
+            if (size > m_audioBuffer.len || size == 0) {
+                size = m_audioBuffer.len;
+            }
             buf = std::move(std::vector<uint8_t>(m_audioBuffer.data, m_audioBuffer.data + size));
             m_audioBuffer.shift(size);
             xSemaphoreGive(m_buffLock);
@@ -164,9 +164,7 @@ void Microphone::readData() {
     size_t bytesRead = 0;
     char cacheBuffer[512];
     i2s_channel_read(m_channelHandle, cacheBuffer, sizeof(cacheBuffer), &bytesRead, portMAX_DELAY);
-    if (xSemaphoreTake(m_buffLock, 1000) == pdPASS) {
-        // uint8_t scaledBuffer[512];
-        // i2s_adc_data_scale(scaledBuffer, cacheBuffer, bytesRead);
+    if (xSemaphoreTake(m_buffLock, portMAX_DELAY) == pdPASS) {
         m_audioBuffer.append((uint8_t*)cacheBuffer, bytesRead);
         xSemaphoreGive(m_buffLock);
     }
