@@ -5,6 +5,12 @@
 #include <functional>
 
 typedef std::function<void(bool success,const char* ip)> ConnectCallback;
+enum SmartConfigState {
+    StartFinding,
+    StartConnecting,
+    StopFinding
+};
+typedef std::function<void(SmartConfigState status)> SmartConfigStatusCallback;
 
 class Wifi {
     friend class Cubicat;
@@ -22,7 +28,7 @@ public:
     // [JS_BINDING_END]
     static void connectAsync(std::string ssid, std::string password, ConnectCallback callback);
     // connect to wifi with smartconfig
-    static void smartConnect(ConnectCallback callback);
+    static void smartConnect(ConnectCallback callback, SmartConfigStatusCallback statusCallback = nullptr);
     static bool isConnected() { return m_sState == CONNECT_SUCCESS; }
     static bool isConnecting() { return m_sState == CONNECTING; }
     static void disconnect();
@@ -39,6 +45,7 @@ private:
     static std::string          m_sIP;
     static bool                 m_sbUseSmartConfig;
     static ConnectCallback      m_sCallbackFunc;
+    static SmartConfigStatusCallback m_sSmartConfigStatusCallback;
     static QueueHandle_t        m_sQueueHandle;
     static std::string          m_sSSID;
     static std::string          m_sPASSWD;

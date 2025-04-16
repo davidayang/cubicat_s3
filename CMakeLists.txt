@@ -1,3 +1,13 @@
+get_filename_component(CMAKELISR_DIR "${CMAKE_CURRENT_LIST_FILE}" DIRECTORY)
+# js generation
+execute_process(
+    COMMAND python ${CMAKELISR_DIR}/tools/js_api_generator.py
+    WORKING_DIRECTORY ${CMAKELISR_DIR}
+    RESULT_VARIABLE result
+)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "JS export generation failed!")
+endif()
 
 file(GLOB_RECURSE SRCS  "cubicat.cpp"
                         "utils/*.cpp"
@@ -33,9 +43,3 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_ERRNO_H)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE CS_PLATFORM=CS_P_ESP32)
 # audio
 target_compile_definitions(${COMPONENT_LIB} PRIVATE PROGMEM=)
-# js generation
-add_custom_target(
-    gen_js_api
-    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/tools/js_api_generator.py
-)
-add_dependencies(${COMPONENT_LIB} gen_js_api)

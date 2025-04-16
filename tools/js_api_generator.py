@@ -2,9 +2,21 @@ import os.path
 import re
 
 
-def find_header_files(directory):
-    header_files = []
+def walk_excluding(directory, exclude_dirs):
+    exclude_dirs = {os.path.normpath(d) for d in exclude_dirs}  # 规范化路径
+
     for root, dirs, files in os.walk(directory):
+        if any(os.path.normpath(root).startswith(exclude) for exclude in exclude_dirs):
+            dirs[:] = []
+            continue
+        dirs[:] = [d for d in dirs if d not in {os.path.basename(ex) for ex in exclude_dirs}]
+        yield root, dirs, files
+
+
+def find_header_files(directory, excludes_abs):
+    header_files = []
+    for root, dirs, files in walk_excluding(directory, excludes_abs):
+        dirs[:] = [d for d in dirs if d not in excludes_abs]
         for file in files:
             if file.endswith(".h"):
                 header_files.append(os.path.join(root, file))
@@ -144,7 +156,8 @@ def gen_cpp_file(cpp_file, class_name, static_func, return_type, func_name, para
     cpp_file.write('}\n')
 
 
-def api_binding_generator(header_path: str, js_out_path: str, cpp_out_path: str, api_name: str, namespace: str):
+def api_binding_generator(header_path: str, header_excludes: list, js_out_path: str, cpp_out_path: str, api_name: str,
+                          namespace: str):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if not js_out_path.endswith('.js'):
         js_out_path += f'/{api_name}.js'
@@ -155,12 +168,15 @@ def api_binding_generator(header_path: str, js_out_path: str, cpp_out_path: str,
     if not cpp_out_path.startswith('/'):
         cpp_out_path = os.path.join(script_dir, cpp_out_path)
     if not header_path.startswith('/'):
-        header_path = os.path.join(script_dir, header_path)
+        header_path = os.path.normpath(os.path.join(script_dir, header_path))
     with open(js_out_path, 'w') as js_file:
         if len(namespace) > 0:
             js_file.write(f'let {namespace} = {{\n')
         with open(cpp_out_path, 'w') as cpp_file:
-            headers = find_header_files(header_path)
+            excludes_abs = []
+            for exclude in header_excludes:
+                excludes_abs.append(os.path.normpath(os.path.join(script_dir, exclude)))
+            headers = find_header_files(header_path, excludes_abs)
             export_headers = set()
             export_funcs = set()
             for header in headers:
@@ -180,7 +196,8 @@ def api_binding_generator(header_path: str, js_out_path: str, cpp_out_path: str,
                         elif '[JS_BINDING_END]' in line_content:
                             begin = False
                         elif begin:
-                            if '//' in line_content or ('/*' in line_content and '*/' in line_content) or ('#' in line_content):
+                            if '//' in line_content or ('/*' in line_content and '*/' in line_content) or (
+                                    '#' in line_content):
                                 continue
                             if '/*' in line_content:
                                 comment = True
@@ -268,10 +285,7 @@ def api_binding_generator(header_path: str, js_out_path: str, cpp_out_path: str,
 if __name__ == '__main__':
     # export cubicat library
     header_path = '../'
+    header_excludes = ['../dist']
     js_out_path = '../../../spiffs_img'
     cpp_out_path = '../js_binding'
-    api_binding_generator(header_path, js_out_path, cpp_out_path, 'cubicat_api', 'api')
-    # export spine library
-    header_path = '../../cubicat_spine'
-    cpp_out_path = '../../cubicat_spine/js_binding'
-    api_binding_generator(header_path, js_out_path, cpp_out_path, 'spine_api', 'spine')
+    api_binding_generator(header_path, header_excludes, js_out_path, cpp_out_path, 'cubicat_api', 'api')

@@ -13,6 +13,7 @@ std::string Wifi::m_sIP = "";
 QueueHandle_t Wifi::m_sQueueHandle = nullptr;
 bool Wifi::m_sbUseSmartConfig = false;
 ConnectCallback Wifi::m_sCallbackFunc = nullptr;
+SmartConfigStatusCallback Wifi::m_sSmartConfigStatusCallback = nullptr;
 std::string Wifi::m_sSSID = "";
 std::string Wifi::m_sPASSWD = "";
 
@@ -38,6 +39,9 @@ void Wifi::wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t even
             ESP_ERROR_CHECK( esp_smartconfig_set_type(SC_TYPE_ESPTOUCH));
             smartconfig_start_config_t cfg = SMARTCONFIG_START_CONFIG_DEFAULT();
             ESP_ERROR_CHECK( esp_smartconfig_start(&cfg) );
+            if (m_sSmartConfigStatusCallback) {
+                m_sSmartConfigStatusCallback(SmartConfigState::StartFinding);
+            }
         } else {
             esp_wifi_connect();
         }
@@ -69,6 +73,9 @@ void Wifi::wifiEventHandler(void *arg, esp_event_base_t event_base, int32_t even
         memcpy(password, evt->password, sizeof(wifi_config.sta.password));
         disconnect();
         connectAsync(ssid, password, m_sCallbackFunc);
+        if (m_sSmartConfigStatusCallback) {
+            m_sSmartConfigStatusCallback(SmartConfigState::StartConnecting);
+        }
     }
 }
 void Wifi::init() {
@@ -91,7 +98,7 @@ void Wifi::init() {
     esp_event_handler_register(SC_EVENT, ESP_EVENT_ANY_ID, wifiEventHandler, NULL);
     m_sQueueHandle = xQueueCreate(1, sizeof(ConnectResult));
 }
-void Wifi::smartConnect(ConnectCallback callback) {
+void Wifi::smartConnect(ConnectCallback callback, SmartConfigStatusCallback statusCallback) {
     if (isConnected())
         return;
     if (isConnecting())
@@ -99,6 +106,7 @@ void Wifi::smartConnect(ConnectCallback callback) {
     setState(CONNECTING);
     m_sbUseSmartConfig = true;
     m_sCallbackFunc = callback;
+    m_sSmartConfigStatusCallback = statusCallback;
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 bool Wifi::connect(std::string ssid, std::string password) {
