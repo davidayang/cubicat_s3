@@ -33,3 +33,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_ERRNO_H)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE CS_PLATFORM=CS_P_ESP32)
 # audio
 target_compile_definitions(${COMPONENT_LIB} PRIVATE PROGMEM=)
+# js generation
+add_custom_target(
+    gen_js_api
+    COMMAND python ${CMAKE_CURRENT_SOURCE_DIR}/tools/js_api_generator.py
+)
+add_dependencies(${COMPONENT_LIB} gen_js_api)
