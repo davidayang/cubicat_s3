@@ -120,8 +120,6 @@ std::vector<uint8_t> Microphone::popAudioBuffer(size_t size)
             m_audioBuffer.shift(size);
             xSemaphoreGive(m_buffLock);
         }
-    } else {
-        LOGE("Microphone not inited or not running %d %d\n", m_bInited, m_bStop);
     }
     return buf;
 }
