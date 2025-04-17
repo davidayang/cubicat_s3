@@ -33,6 +33,7 @@ public:
     static bool isConnecting() { return m_sState == CONNECTING; }
     static void disconnect();
     std::string getSSID() { return m_sSSID; }
+    void removeStoredSSID();
 private:
     Wifi();
     static void init();

@@ -183,6 +183,8 @@ void Wifi::onConnected(bool success, const char* ip) {
         ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READWRITE, &nvs_handle));
         nvs_set_str(nvs_handle, "wifi_ssid", m_sSSID.c_str());
         nvs_set_str(nvs_handle, "wifi_password", m_sPASSWD.c_str());
+        nvs_commit(nvs_handle);
+        nvs_close(nvs_handle);
         m_sIP = ip;
         initialize_sntp();
     } else {
@@ -220,4 +222,14 @@ void Wifi::readStoredSSIDAndPassword() {
         m_sSSID = ssidbuf;
     if (password_len)
         m_sPASSWD = passwordbuf;
+    nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
+}
+void Wifi::removeStoredSSID() {
+    nvs_handle_t nvs_handle;
+    ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READWRITE, &nvs_handle));
+    nvs_erase_key(nvs_handle, "wifi_ssid");
+    nvs_erase_key(nvs_handle, "wifi_password");
+    nvs_commit(nvs_handle);
+    nvs_close(nvs_handle);
 }
