@@ -211,19 +211,20 @@ void Wifi::eventLoop() {
 }
 void Wifi::readStoredSSIDAndPassword() {
     nvs_handle_t nvs_handle;
-    ESP_ERROR_CHECK(nvs_open("wifi_config", NVS_READONLY, &nvs_handle));
-    char ssidbuf[32] = {0};
-    char passwordbuf[64] = {0};
-    size_t ssid_len = sizeof(ssidbuf);
-    size_t password_len = sizeof(passwordbuf);
-    nvs_get_str(nvs_handle, "wifi_ssid", ssidbuf, &ssid_len);
-    nvs_get_str(nvs_handle, "wifi_password", passwordbuf, &password_len);
-    if (ssid_len)
-        m_sSSID = ssidbuf;
-    if (password_len)
-        m_sPASSWD = passwordbuf;
-    nvs_commit(nvs_handle);
-    nvs_close(nvs_handle);
+    if (nvs_open("wifi_config", NVS_READONLY, &nvs_handle) == ESP_OK) {
+        char ssidbuf[32] = {0};
+        char passwordbuf[64] = {0};
+        size_t ssid_len = sizeof(ssidbuf);
+        size_t password_len = sizeof(passwordbuf);
+        nvs_get_str(nvs_handle, "wifi_ssid", ssidbuf, &ssid_len);
+        nvs_get_str(nvs_handle, "wifi_password", passwordbuf, &password_len);
+        if (ssid_len)
+            m_sSSID = ssidbuf;
+        if (password_len)
+            m_sPASSWD = passwordbuf;
+        nvs_commit(nvs_handle);
+        nvs_close(nvs_handle);
+    }
 }
 void Wifi::removeStoredSSID() {
     nvs_handle_t nvs_handle;

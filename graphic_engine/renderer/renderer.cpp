@@ -191,6 +191,8 @@ bool RegionClip(const Region& vp, Region& region, uint16_t* offsetx, uint16_t* o
         cache = (cacheType*)psram_prefered_malloc(cachedCount * sizeof(cacheType)); \
     }
 
+#define CLAMP_01(x) x = x < 0 ? 0 : (x > 1 ? 1 : x);
+
 Renderer::Renderer(DisplayInterface* backBuffer)
 : m_pBackBufferInterface(backBuffer)
 {
@@ -263,6 +265,8 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
                 const float epsilon = 0.0001f;
                 float u = p0.u + u_offset + epsilon;
                 float v = p0.v + v_offset + epsilon;
+                CLAMP_01(u);
+                CLAMP_01(v);
                 u_offset += u_step;
                 v_offset += v_step;
                 float uCoord = u * texWidth;
