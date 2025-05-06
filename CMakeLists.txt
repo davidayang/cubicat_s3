@@ -26,13 +26,12 @@ if (CONFIG_JAVASCRIPT_ENABLE)
     list(APPEND SRCS "3rd_party/mjs/mjs.c")
 endif()
 idf_component_register(SRCS ${SRCS}
-                       REQUIRES esp_driver_gpio driver esp_wifi esp_timer
+                       REQUIRES esp_driver_gpio driver esp_wifi esp_timer esp_lcd
                        PRIV_REQUIRES esp_driver_spi esp_psram nvs_flash heap spiffs fatfs esp_driver_sdmmc soc
                        INCLUDE_DIRS "." "graphic_engine/3rd_party" "graphic_engine/3rd_party/zlib" "3rd_party/mjs" 
                        "3rd_party/mjs/src" "3rd_party/mjs/src/frozen")
 
 target_compile_options(${COMPONENT_LIB} PRIVATE -fexceptions -Wno-error=reorder -Wno-maybe-uninitialized -Wno-error=format)
-# target_compile_definitions(${COMPONENT_LIB} PRIVATE ST7789_DRIVER)
 # libpng
 target_compile_definitions(${COMPONENT_LIB} PRIVATE PPM_SUPPORTED)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE HAVE_MATH_H)

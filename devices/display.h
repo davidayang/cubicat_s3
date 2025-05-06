@@ -1,7 +1,7 @@
 #ifndef _DISPLAY_H_
 #define _DISPLAY_H_
 #include "bb_captouch.h"
-#include "st7789/st7789.h"
+#include "lcd_interface.h"
 #include <algorithm>
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
 #include "graphic_engine/drawable/font.h"
@@ -93,7 +93,6 @@ protected:
     uint8_t             m_rotation = 0;
     uint16_t            m_width = 0;
     uint16_t            m_height = 0;
-    TFT_t               m_dev;
     int8_t              m_interruptGPIO = -1;
     TOUCHINFO           m_touchInfo;
     uint16_t*           m_pBackBuffer = nullptr;

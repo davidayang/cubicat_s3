@@ -13,7 +13,6 @@ struct SwapBufferDesc {
     DirtyWindow dirtyWindow;
     uint16_t viewWidth;
     uint16_t viewHeight;
-    TFT_t* tft;
 };
 
 class BufferLock {
@@ -36,7 +35,7 @@ void swapBufferTask(void* param) {
     {
         SwapBufferDesc desc;
         if (xQueueReceive(swapQueue, &desc, portMAX_DELAY) == pdTRUE) {
-            lcdPushPixels(desc.tft, desc.dirtyWindow.x1, desc.dirtyWindow.y1, 
+            lcdPushPixels(desc.dirtyWindow.x1, desc.dirtyWindow.y1, 
             desc.dirtyWindow.x2, desc.dirtyWindow.y2,desc.buffer);
             g_bPresented = true;
         } else {
@@ -79,15 +78,16 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
     allocBackBuffer();
     m_interruptGPIO = touchInt;
     m_rotation = width>height ? 1 : 0;
-    spi_master_init(&m_dev, sda, scl, -1, dc, rst, blk);
-	lcdInit(&m_dev, width, height, 0, 0);
+    int freq = 80 * 1000 * 1000; // 80MHz
+    initSPIBus(scl, sda, dc, -1, freq);
+	initLCD7789(rst, blk);
     if (touchSda > 0 && touchScl > 0 && touchRst > 0) {
         m_touch.init(touchSda, touchScl, touchRst, touchInt);
     }
     m_bInited = true;
     // cubicat uses a protrait screen, if we want a landscape screen, rotate the screen 90 degrees
     if (width > height)
-        lcdRotate(&m_dev, DIRECTION90);
+        lcdRotate(DIRECTION90);
 #ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         swapQueue = xQueueCreate(1, sizeof(SwapBufferDesc));
@@ -163,7 +163,7 @@ void Display::allocBackBuffer() {
     m_bufferMutex = xSemaphoreCreateMutex();
 }   
 void Display::pushPixelsToScreen(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t* pixels) {
-    lcdPushPixels(&m_dev, x1, y1, x2, y2, pixels);
+    lcdPushPixels(x1, y1, x2, y2, pixels);
 }
 void Display::swapBuffer() {
     if (!m_dirtyWindow.valid())
@@ -189,7 +189,6 @@ void Display::swapBuffer() {
             SwapBufferDesc desc;
             desc.buffer = m_pFrontBuffer + y1 * m_width;
             desc.dirtyWindow = { x1, y1, x2, y2};
-            desc.tft = &m_dev;
             desc.viewHeight = m_height;
             desc.viewWidth = m_width;
             if (xQueueSend(swapQueue, &desc, portMAX_DELAY) == pdTRUE) {
@@ -199,7 +198,7 @@ void Display::swapBuffer() {
     } else {
 #endif
         LOCK
-        lcdPushPixels(&m_dev, x1, y1, x2, y2, m_pBackBuffer + y1 * m_width);
+        lcdPushPixels(x1, y1, x2, y2, m_pBackBuffer + y1 * m_width);
 #ifdef CONFIG_DOUBLE_BUFFERING
     }
 #endif
