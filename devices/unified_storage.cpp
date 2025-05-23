@@ -45,7 +45,7 @@ void UnifiedStorage::init(bool sd)
             uint8_t spiffsCount = 0;
             while (partItr != NULL) {
                 const esp_partition_t* part = esp_partition_get(partItr);
-                // Todo: hack code to skip the model partition, need to be fixed
+                // Todo: hack code to skip the model partition, need optimize
                 partItr = esp_partition_next(partItr);
                 if (strcmp(part->label, "model") == 0) {
                     continue;

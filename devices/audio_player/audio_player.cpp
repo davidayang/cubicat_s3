@@ -42,7 +42,8 @@ AudioPlayer::~AudioPlayer() {
 bool AudioPlayer::init() {
     if (!m_playTaskQueue) {
         m_playTaskQueue = xQueueCreate(1, sizeof(AudioTaskData));
-        if (xTaskCreatePinnedToCore(AudioPlayerTask, "audio task", 1024*8, m_playTaskQueue, 1, &m_taskHandle, getSubCoreId()) != pdPASS) {
+        if (xTaskCreatePinnedToCoreWithCaps(AudioPlayerTask, "audio task", 1024*8, m_playTaskQueue,
+             1, &m_taskHandle, getSubCoreId(), MALLOC_CAP_SPIRAM) != pdPASS) {
             LOGE("Audio player init failed");
             vQueueDelete(m_playTaskQueue);
             m_playTaskQueue = nullptr;

@@ -5,4 +5,5 @@
 #include "speaker.h"
 #include "wifi.h"
 #include "unified_storage.h"
+#include "ble_client.h"
 #endif

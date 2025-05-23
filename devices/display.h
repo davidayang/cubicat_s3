@@ -52,16 +52,18 @@ class Display {
     friend class Cubicat;
 public:
     Display(const Display& ) = delete;
+#ifdef CONFIG_ENABLE_TOUCH
     void setTouchListener(TouchListener* listener);
     const TOUCHINFO& getTouchInfo();
     bool isTouched();
+    void touchLoop();
+#endif
     uint8_t getRotation() { return m_rotation; }
     // directly push pixels to screen
     void pushPixelsToScreen(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t*);
     void swapBuffer();
     uint16_t width() { return m_width; }
     uint16_t height() { return m_height; }
-    void touchLoop();
     // draw primitive
     // all primitive draw directly draw to back buffer, thus coordinate is relative to view port, which means origin point (0,0)
     // is the top left corner of view port
@@ -89,7 +91,9 @@ protected:
     void _drawRect(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t color, bool fill, uint16_t thickness, uint16_t cornerRadius);
     void _drawCircle(int16_t x, int16_t y, uint16_t radius, uint16_t color, bool fill, uint16_t thickness);
     bool                m_bInited = false;
+#ifdef CONFIG_ENABLE_TOUCH
     BBCapTouch          m_touch;
+#endif
     uint8_t             m_rotation = 0;
     uint16_t            m_width = 0;
     uint16_t            m_height = 0;

@@ -6,9 +6,26 @@
 namespace cubicat {
 
 
+png_voidp
+PNGCBAPI png_esp32_malloc(png_structp png_ptr, png_alloc_size_t size)
+{
+    if (size == 0)
+      return (NULL);
+    return (png_voidp)psram_prefered_malloc(size);
+}
+
+/* Free a pointer.  It is removed from the list at the same time. */
+void PNGCBAPI
+png_esp32_free(png_structp png_ptr, png_voidp ptr)
+{
+   free(ptr);
+   ptr = NULL;
+}
+
 TexturePtr loadPNG(FILE* file) {
     TexturePtr tex;
-    png_structp png = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+    png_structp png = png_create_read_struct_2(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr, nullptr,
+    png_esp32_malloc, png_esp32_free);
     if (!png) {
         return tex;
     }

@@ -38,7 +38,7 @@ private:
     bool                m_bLoop = false;
     bool                m_bPlaying = false;
     FILE*               m_pAudioFile = nullptr;
-    AudioBuffer         m_audioBuffer;
+    AudioBuffer8        m_audioBuffer;
     QueueHandle_t       m_playTaskQueue = nullptr;
     TaskHandle_t        m_taskHandle = nullptr;
     SampleRateCallback  m_sampleRateCallback = nullptr;

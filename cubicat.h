@@ -34,6 +34,9 @@ public:
     Microphone      mic;
     Wifi            wifi;
     UnifiedStorage  storage;
+#ifdef CONFIG_BT_ENABLED
+    BLEClient& bluetooth = *BLEClient::getInstance();
+#endif
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
     EmbedGameEngine engine;
 #endif

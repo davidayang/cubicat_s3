@@ -81,9 +81,11 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
     int freq = 80 * 1000 * 1000; // 80MHz
     initSPIBus(scl, sda, dc, -1, freq);
 	initLCD7789(rst, blk);
+#ifdef CONFIG_ENABLE_TOUCH
     if (touchSda > 0 && touchScl > 0 && touchRst > 0) {
         m_touch.init(touchSda, touchScl, touchRst, touchInt);
     }
+#endif
     m_bInited = true;
     // cubicat uses a protrait screen, if we want a landscape screen, rotate the screen 90 degrees
     if (width > height)
@@ -91,12 +93,13 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
 #ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         swapQueue = xQueueCreate(1, sizeof(SwapBufferDesc));
-        xTaskCreatePinnedToCore(swapBufferTask, "swap buffer", 1024*4, this, 1, NULL, getSubCoreId());
+        xTaskCreatePinnedToCoreWithCaps(swapBufferTask, "swap buffer", 1024*4, this, 1, NULL, getSubCoreId(), MALLOC_CAP_SPIRAM);
     }
 #endif
     // first swap to clear the screen
     swapBuffer();
 }
+#ifdef CONFIG_ENABLE_TOUCH
 void Display::setTouchListener(TouchListener* callback) {
     m_pTouchListener = callback;
 }
@@ -135,6 +138,7 @@ void Display::touchLoop() {
         }
     }
 }
+#endif
 
 void Display::allocBackBuffer() {
     if (m_pBackBuffer)

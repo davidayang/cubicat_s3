@@ -26,7 +26,7 @@ if (CONFIG_JAVASCRIPT_ENABLE)
     list(APPEND SRCS "3rd_party/mjs/mjs.c")
 endif()
 idf_component_register(SRCS ${SRCS}
-                       REQUIRES esp_driver_gpio driver esp_wifi esp_timer esp_lcd
+                       REQUIRES esp_driver_gpio driver esp_wifi esp_timer esp_lcd cubicat_ble
                        PRIV_REQUIRES esp_driver_spi esp_psram nvs_flash heap spiffs fatfs esp_driver_sdmmc soc
                        INCLUDE_DIRS "." "graphic_engine/3rd_party" "graphic_engine/3rd_party/zlib" "3rd_party/mjs" 
                        "3rd_party/mjs/src" "3rd_party/mjs/src/frozen")

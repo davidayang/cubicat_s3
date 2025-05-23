@@ -22,5 +22,127 @@ menu "Cubicat Configuration"
         default y
         help
             Enable JavaScript
+    
+    menu "LCD Configuration"
+        config ENABLE_LCD
+            bool "Enable lcd"
+            default y
+            help
+                Enable lcd support, for now only support ST7789
+
+        config LCD_WIDTH
+            int "lcd width"
+            depends on ENABLE_LCD
+            default 320
+            help
+                LCD width
+
+        config LCD_HEIGHT
+            int "lcd height"
+            depends on ENABLE_LCD
+            default 240
+            help
+                LCD height
         
+        config LCD_SCL
+            int "lcd clock gpio"
+            depends on ENABLE_LCD
+            default 5
+            help
+                LCD clock gpio number
+
+        config LCD_SDA
+            int "lcd data gpio"
+            depends on ENABLE_LCD
+            default 7
+            help
+                LCD data gpio number
+
+        config LCD_RST
+            int "lcd reset gpio"
+            depends on ENABLE_LCD
+            default 6
+            help
+                LCD reset gpio number
+
+        config LCD_DC
+            int "lcd dc gpio"
+            depends on ENABLE_LCD
+            default 4
+            help
+                LCD dc gpio number
+        
+        config ENABLE_TOUCH
+            bool "Enable touch"
+            depends on ENABLE_LCD
+            default n
+            help
+                Enable touch screen only support GT911 for now
+
+        config TOUCH_SDA_GPIO
+            int "touch sda gpio"
+            depends on ENABLE_TOUCH
+            default 21
+            help
+                touch sda gpio number
+
+        config TOUCH_SCL_GPIO
+            int "touch scl gpio"
+            depends on ENABLE_TOUCH
+            default 47
+            help
+                touch scl gpio number
+
+        config TOUCH_RST_GPIO
+            int "touch reset gpio"
+            depends on ENABLE_TOUCH
+            default 17
+            help
+                touch reset gpio number
+
+        config TOUCH_INT_GPIO
+            int "touch interrupt gpio"
+            depends on ENABLE_TOUCH
+            default 18
+            help
+                touch interrupt gpio number
+    endmenu
+
+    menu "Audio Configuration"
+        config SPEAKER_WS_GPIO
+            int "speaker ws gpio"
+            default 10
+            help
+                speaker ws gpio number
+
+        config SPEAKER_BCK_GPIO
+            int "speaker bck gpio"
+            default 11
+            help
+                speaker bck gpio number
+
+        config SPEAKER_DOUT_GPIO
+            int "speaker dout gpio"
+            default 12
+            help
+                speaker dout gpio number
+
+        config SPEAKER_EN_GPIO
+            int "speaker enable gpio"
+            default 13
+            help
+                speaker enable gpio number
+
+        config MIC_CLK_GPIO
+            int "microphone clock gpio"
+            default 8
+            help
+                microphone clock gpio number, pdm micphone only
+
+        config MIC_DATA_GPIO
+            int "microphone data gpio"
+            default 9
+            help
+                microphone data gpio number, pdm micphone only
+    endmenu
 endmenu

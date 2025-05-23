@@ -281,11 +281,18 @@ def api_binding_generator(header_path: str, header_excludes: list, js_out_path: 
         if len(namespace) > 0:
             js_file.write('};\n')
 
-
-if __name__ == '__main__':
+def main():
     # export cubicat library
     header_path = '../'
     header_excludes = ['../dist']
     js_out_path = '../../../spiffs_img'
+    absolute_path = os.path.abspath(js_out_path)
+    if not os.path.exists(absolute_path):
+        print(f"Javascript output path: {absolute_path} not exist, JS Binding export abort.")
+        return
     cpp_out_path = '../js_binding'
     api_binding_generator(header_path, header_excludes, js_out_path, cpp_out_path, 'cubicat_api', 'api')
+
+
+if __name__ == '__main__':
+    main()

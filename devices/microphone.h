@@ -14,7 +14,7 @@ public:
     ~Microphone();
 
     void setSampleRate(uint16_t sampleRate);
-    std::vector<uint8_t> popAudioBuffer(size_t maxSize); // maxSize = 0 means pop all
+    std::vector<int16_t> popAudioBuffer(size_t maxSize); // maxSize = 0 means pop all
     // 如果使用pdm模式，ws不需要配置,且bus number必须为0,因为esp32s3的pdm模式只有I2S_NUM_0支持
     void stop();
     void start();
@@ -34,7 +34,7 @@ private:
     i2s_chan_handle_t   m_channelHandle = nullptr;
     bool                m_bInited = false;
     bool                m_bStop = true;
-    AudioBuffer         m_audioBuffer;
+    AudioBuffer16       m_audioBuffer;
     TaskHandle_t        m_taskHandle = nullptr;
     SemaphoreHandle_t   m_buffLock = nullptr;
     uint32_t            m_lastBuffID = 0;

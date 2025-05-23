@@ -12,7 +12,7 @@
 #include "../devices/lcd_interface.h"
 
 #define SPI_HOST  SPI2_HOST
-#define TRANSFER_BATCH_SIZE 2560 // 4096 bytes when enable dma
+#define TRANSFER_BATCH_SIZE 4095 // 4096 bytes when enable dma
 
 esp_lcd_panel_io_handle_t io_handle = NULL;
 esp_lcd_panel_handle_t panel_handle = NULL;

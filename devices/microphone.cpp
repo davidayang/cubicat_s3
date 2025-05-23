@@ -108,15 +108,15 @@ void Microphone::init(int clk, int din, int ws, int busNum, bool pdm)
     m_bInited = true;
 }
 
-std::vector<uint8_t> Microphone::popAudioBuffer(size_t size)
+std::vector<int16_t> Microphone::popAudioBuffer(size_t size)
 {
-    std::vector<uint8_t> buf;
+    std::vector<int16_t> buf;
     if (m_bInited && !m_bStop) {
         if (xSemaphoreTake(m_buffLock, portMAX_DELAY) == pdPASS) {
             if (size > m_audioBuffer.len || size == 0) {
                 size = m_audioBuffer.len;
             }
-            buf = std::move(std::vector<uint8_t>(m_audioBuffer.data, m_audioBuffer.data + size));
+            buf = std::move(std::vector<int16_t>(m_audioBuffer.data, m_audioBuffer.data + size));
             m_audioBuffer.shift(size);
             xSemaphoreGive(m_buffLock);
         }
@@ -160,10 +160,10 @@ void Microphone::shutdown()
 
 void Microphone::readData() {
     size_t bytesRead = 0;
-    char cacheBuffer[512];
+    int16_t cacheBuffer[256];
     i2s_channel_read(m_channelHandle, cacheBuffer, sizeof(cacheBuffer), &bytesRead, portMAX_DELAY);
     if (xSemaphoreTake(m_buffLock, portMAX_DELAY) == pdPASS) {
-        m_audioBuffer.append((uint8_t*)cacheBuffer, bytesRead);
+        m_audioBuffer.append(cacheBuffer, bytesRead / sizeof(int16_t));
         xSemaphoreGive(m_buffLock);
     }
 }

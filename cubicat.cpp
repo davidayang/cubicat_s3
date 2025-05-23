@@ -3,26 +3,6 @@
 #include <esp_wifi.h>
 #include "js_binding/js_binding.h"
 
-#define TFT_WIDTH       320
-#define TFT_HEIGHT      240
-
-#define LCD_SDA         7
-#define LCD_SCL         5
-#define LCD_RST         6
-#define LCD_DC          4
-#define LCD_TP_SDA      21
-#define LCD_TP_SCL      47
-#define LCD_TP_RST      17
-#define LCD_TP_INT      18
-
-#define SPKER_WS        10
-#define SPKER_BCK       11
-#define SPKER_DOUT      12
-#define SPKER_EN        13
-
-#define MIC_CLK         8          
-#define MIC_DATA        9
-
 FILE* openFileFlash(const char* filename, bool binary) {
     return CUBICAT.storage.openFileFlash(filename, binary);
 }
@@ -46,16 +26,28 @@ void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sd
         LOGW("Speaker and sd card can not be enabled simultaneously\n");
     }
     storage.init(sdEnable);
-    lcd.init(TFT_WIDTH, TFT_HEIGHT, LCD_SDA, LCD_SCL, LCD_RST, LCD_DC, -1, LCD_TP_SDA, LCD_TP_SCL, LCD_TP_RST, LCD_TP_INT);
+#ifdef CONFIG_ENABLE_LCD
+#ifdef CONFIG_ENABLE_TOUCH
+    lcd.init(CONFIG_LCD_WIDTH, CONFIG_LCD_HEIGHT, CONFIG_LCD_SDA, CONFIG_LCD_SCL, CONFIG_LCD_RST, CONFIG_LCD_DC, -1,
+         CONFIG_TOUCH_SDA_GPIO, CONFIG_TOUCH_SCL_GPIO, CONFIG_TOUCH_RST_GPIO, CONFIG_TOUCH_INT_GPIO);
+#else
+    lcd.init(CONFIG_LCD_WIDTH, CONFIG_LCD_HEIGHT, CONFIG_LCD_SDA, CONFIG_LCD_SCL, CONFIG_LCD_RST, CONFIG_LCD_DC, -1,
+         -1, -1, -1, -1);
+#endif
+#endif
     if (speakerEnable)
-        speaker.init(SPKER_BCK, SPKER_WS, SPKER_DOUT, SPKER_EN);
+        speaker.init(CONFIG_SPEAKER_BCK_GPIO, CONFIG_SPEAKER_WS_GPIO, CONFIG_SPEAKER_DOUT_GPIO, CONFIG_SPEAKER_EN_GPIO);
     if (micEnable)
-        mic.init(MIC_CLK, MIC_DATA);
-    if (wifiEnable)
+        mic.init(CONFIG_MIC_CLK_GPIO, CONFIG_MIC_DATA_GPIO);
+    if (wifiEnable) {
         Wifi::init();
+    }
+#ifdef CONFIG_BT_ENABLED
+    bluetooth.init();
+#endif
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
     engine.createResourceManager();
-    engine.createSceneManager()->createUICanvas(TFT_WIDTH, TFT_HEIGHT);
+    engine.createSceneManager()->createUICanvas(CONFIG_LCD_WIDTH, CONFIG_LCD_HEIGHT);
     engine.createRenderer(&lcd)->addDrawStageListener(&lcd);
     engine.createTickManager();
     engine.createScheduleManager();
@@ -65,7 +57,9 @@ uint32_t lastTime = 0;
 void Cubicat::loop(bool present)
 {
     wifi.eventLoop();
+#ifdef CONFIG_ENABLE_TOUCH
     lcd.touchLoop();
+#endif
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
     engine.update();
 #endif
