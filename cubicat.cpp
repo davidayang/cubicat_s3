@@ -49,7 +49,7 @@ void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sd
         speaker.init(CONFIG_SPEAKER_BCK_GPIO, CONFIG_SPEAKER_WS_GPIO, CONFIG_SPEAKER_DATA_GPIO, CONFIG_SPEAKER_EN_GPIO, 
                     CONFIG_SPEAKER_SAMPLE_RATE, CONFIG_SPEAKER_BIT_WIDTH, nullptr);
     if (micEnable)
-        mic.init(CONFIG_MIC_CLK_GPIO, CONFIG_MIC_WS_GPIO, CONFIG_MIC_DATA_GPIO, CONFIG_MIC_SAMPLE_RATE,
+        mic.init(CONFIG_MIC_BCK_GPIO, CONFIG_MIC_WS_GPIO, CONFIG_MIC_DATA_GPIO, CONFIG_MIC_SAMPLE_RATE,
              CONFIG_MIC_BIT_WIDTH, nullptr, pdm);
 #endif
     if (wifiEnable) {

@@ -91,7 +91,7 @@ void Display::init(uint16_t width, uint16_t height, int sda, int scl, int rst, i
     m_bInited = true;
     // cubicat uses a protrait screen, if we want a landscape screen, rotate the screen 90 degrees
     if (width > height)
-        lcdRotate(DIRECTION90);
+        lcdRotate(DIRECTION270);
 #ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         swapQueue = xQueueCreate(1, sizeof(SwapBufferDesc));

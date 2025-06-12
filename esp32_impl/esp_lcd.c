@@ -69,30 +69,33 @@ int initLCD7789(int rst, int blk) {
 
 void lcdRotate(DIRECTION direction) {
     if (panel_handle) {
-        // switch (direction)
-        // {
-        // case DIRECTION0:
-        //     break;
-        // case DIRECTION90:
-        //     esp_lcd_panel_swap_xy(panel_handle, true);
-        //     break;
-        // case DIRECTION180:
-        //     esp_lcd_panel_swap_xy(panel_handle, false);
-        //     esp_lcd_panel_mirror(panel_handle, true, true);
-        //     break;
-        // case DIRECTION270:
-        //     esp_lcd_panel_swap_xy(panel_handle, true);
-        //     esp_lcd_panel_mirror(panel_handle, true, false);
-        //     break;
-        // }
-        uint8_t madctl;
-        switch (direction) {
-            case DIRECTION0:   madctl = 0x00; break;   // 0°
-            case DIRECTION90:  madctl = 0x60; break;   // 90°（XY交换+垂直镜像）
-            case DIRECTION180: madctl = 0xA0; break;   // 180°（垂直镜像+水平镜像）
-            case DIRECTION270: madctl = 0xC0; break;   // 270°（XY交换+双镜像）
+        switch (direction)
+        {
+        case DIRECTION0:
+            esp_lcd_panel_swap_xy(panel_handle, false);
+            esp_lcd_panel_mirror(panel_handle, false, false);
+            break;
+        case DIRECTION90:
+            esp_lcd_panel_swap_xy(panel_handle, true);
+            esp_lcd_panel_mirror(panel_handle, false, false);
+            break;
+        case DIRECTION180:
+            esp_lcd_panel_swap_xy(panel_handle, false);
+            esp_lcd_panel_mirror(panel_handle, true, true);
+            break;
+        case DIRECTION270:
+            esp_lcd_panel_swap_xy(panel_handle, true);
+            esp_lcd_panel_mirror(panel_handle, true, false);
+            break;
         }
-        esp_lcd_panel_io_tx_param(panel_handle, 0x36, &madctl, 1);
+        // uint8_t madctl;
+        // switch (direction) {
+        //     case DIRECTION0:   madctl = 0x00; break;   // 0°
+        //     case DIRECTION90:  madctl = 0x60; break;   // 90°（XY交换+垂直镜像）
+        //     case DIRECTION180: madctl = 0xA0; break;   // 180°（垂直镜像+水平镜像）
+        //     case DIRECTION270: madctl = 0xC0; break;   // 270°（XY交换+双镜像）
+        // }
+        // esp_lcd_panel_io_tx_param(panel_handle, 0x36, &madctl, 1);
     }
 }
 

@@ -23,7 +23,28 @@ menu "Cubicat Configuration"
         help
             Enable JavaScript
     
+    choice Board_Type
+        prompt "Board Type"
+        default CUBICAT_S3
+        help
+            Select the board you use.
+
+    config CUBICAT_S3
+        bool "Cubicat s3 device"
+        default y
+        help
+            Cubicat s3 device.
+
+    config BREAD_BOARD
+        bool "Bread board"
+        default n
+        help
+            Custom bread board.
+    endchoice
+
+        
     menu "LCD Configuration"
+        depends on BREAD_BOARD
         config ENABLE_LCD
             bool "Enable lcd"
             default y
@@ -33,7 +54,7 @@ menu "Cubicat Configuration"
         config LCD_WIDTH
             int "lcd width"
             depends on ENABLE_LCD
-            default 320
+            default 240
             help
                 LCD width
 
@@ -109,9 +130,10 @@ menu "Cubicat Configuration"
     endmenu
 
     menu "Audio Configuration"
+        depends on BREAD_BOARD
         config USE_AUDIO_CODEC
             bool "Use audio codec"
-            default n
+            default y
             help
                 Combine speaker and microphone with audio codec
 
@@ -124,26 +146,26 @@ menu "Cubicat Configuration"
         config SPEAKER_WS_GPIO
             int "speaker ws gpio"
             depends on !USE_AUDIO_CODEC
-            default 10
+            default 13
             help
                 speaker ws gpio number
 
         config SPEAKER_BCK_GPIO
             int "speaker bck gpio"
             depends on !USE_AUDIO_CODEC
-            default 11
+            default 12
             help
                 speaker bck gpio number
 
         config SPEAKER_DATA_GPIO
             int "speaker data gpio"
-            default 12
+            default 11
             help
                 speaker data gpio number
 
         config SPEAKER_EN_GPIO
             int "speaker enable gpio"
-            default 13
+            default 10
             help
                 speaker enable gpio number
                 
@@ -161,7 +183,7 @@ menu "Cubicat Configuration"
             help
                 speaker bit width
 
-        config MIC_CLK_GPIO
+        config MIC_BCK_GPIO
             int "microphone clock gpio"
             depends on !USE_AUDIO_CODEC
             default 8
@@ -171,13 +193,13 @@ menu "Cubicat Configuration"
         config MIC_WS_GPIO
             int "microphone ws gpio"
             depends on !USE_AUDIO_CODEC
-            default -1
+            default 13
             help
                 microphone ws gpio number, use -1 for pdm mode
 
         config MIC_DATA_GPIO
             int "microphone data gpio"
-            default 9
+            default 14
             help
                 microphone data gpio number
         
@@ -198,14 +220,14 @@ menu "Cubicat Configuration"
         config AUDIO_CODEC_BCLK_GPIO
             int "audio codec bclk/sck gpio"
             depends on USE_AUDIO_CODEC
-            default -1
+            default 12
             help
                 audio codec bit clock gpio number
 
         config AUDIO_CODEC_WS_GPIO
             int "audio codec ws/lrck gpio"
             depends on USE_AUDIO_CODEC
-            default -1
+            default 13
             help
                 audio codec words select gpio number
 

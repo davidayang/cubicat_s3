@@ -2,6 +2,7 @@
 #define _DISPLAY_H_
 #include "bb_captouch.h"
 #include "lcd_interface.h"
+#include "gpio_config.h"
 #include <algorithm>
 #if !CONFIG_REMOVE_GRAPHIC_ENGINE
 #include "graphic_engine/drawable/font.h"
