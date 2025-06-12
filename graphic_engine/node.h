@@ -32,7 +32,7 @@ public:
 
     // [JS_BINDING_BEGIN]
     void setName(const string& name) {m_name = name;}
-    void setVisible(bool visible) {m_bVisible = visible;}
+    void setVisible(bool visible);
     void setScale(float s);
     // [JS_BINDING_END]
     const std::string& getName() {return m_name;} 

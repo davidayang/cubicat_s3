@@ -4,11 +4,12 @@
 #include <cmath>
 #include <string.h>
 #include "core/memory_allocator.h"
+#include <atomic>
 
 using namespace cubicat;
 
 QueueHandle_t swapQueue;
-volatile bool g_bPresented = true;
+std::atomic<bool> g_bPresented = true;
 
 struct SwapBufferDesc {
     uint16_t* buffer;
@@ -191,7 +192,7 @@ void Display::swapBuffer() {
 #ifdef CONFIG_DOUBLE_BUFFERING
     if (m_bDoubleBuffering) {
         if (g_bPresented) {
-            memcpy(m_pFrontBuffer + y1 * m_width, m_pBackBuffer + y1 * m_width, rectWidth * rectHeight * sizeof(uint16_t));
+            std::swap(m_pFrontBuffer, m_pBackBuffer);
             SwapBufferDesc desc;
             desc.buffer = m_pFrontBuffer + y1 * m_width;
             desc.dirtyWindow = { x1, y1, x2, y2};

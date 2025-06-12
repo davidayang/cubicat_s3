@@ -26,7 +26,7 @@ public:
     static bool zCompareDesc(const SharedPtr<Drawable>& a, const SharedPtr<Drawable>& b) {return a->getZOrder() > b->getZOrder();}
     virtual ~Drawable() {}
     void update(const Vector2f& pos,const Vector2f& scale, int16_t rotation);
-    virtual void setPivot(float x, float y) {m_pivot.x = x; m_pivot.y = y; addDirty(true);}
+    virtual void setPivot(float x, float y) {m_pivot.x = x; m_pivot.y = y; markDirty();}
     virtual void onFinishDraw() {}
 
     Vector2f getScale();
@@ -35,7 +35,7 @@ public:
     const Vector2f& getPivot() {return m_pivot;} 
     // bounding box in world space, y up
     Region getRegion() {return m_region;}
-    void setVisible(bool visible) {m_bVisible = visible;}
+    void setVisible(bool visible);
     bool isVisible() {return m_bVisible;}
     void setMaterial(MaterialPtr m) { m_pMaterial = m;}
     DrawableMaterial getMaterial();

@@ -50,7 +50,9 @@ void Speaker::init(int bclk, int ws, int dout, int enable, uint32_t sampleRate, 
     }
     m_enablePin = enable;
     m_channelHandle = channelHandle;
-    if (!channelHandle) {
+    if (channelHandle) {
+        m_bDuplexMode = true;
+    } else {
         i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
         chan_cfg.auto_clear = true;
         ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &m_channelHandle, nullptr));
@@ -106,14 +108,16 @@ void Speaker::setEnable(bool enable)
     if (!m_channelHandle || m_bEnable == enable) {
         return;
     }
-    LOGI("Speaker setEnable %d\n", enable);
     PLAY_LOCK
-    gpio_set_level((gpio_num_t)m_enablePin, enable);
+    if (m_enablePin > 0)
+        gpio_set_level((gpio_num_t)m_enablePin, enable);
     m_bEnable = enable;
     if (enable) {
         i2s_channel_enable(m_channelHandle);
     } else {
-        i2s_channel_disable(m_channelHandle);
+        // Do not disable channel in duplex mode, because it will stop BCK signal generating
+        if (!m_bDuplexMode)
+            i2s_channel_disable(m_channelHandle);
     }
 }
 void Speaker::setBitsPerSample(uint8_t bitPerSample) {

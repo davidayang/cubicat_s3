@@ -41,7 +41,7 @@ void Node::update(float deltaTime, bool parentDirty) {
 void Node::updateFromParent(bool parentDirty) {
     if (parentDirty || isTransformDirty()) {
         for (auto& drawable : m_vDrawables) {
-            drawable->addDirty(true);
+            drawable->markDirty();
         }
     }
 }
@@ -52,6 +52,14 @@ void Node::attachDrawable(DrawablePtr drawable) {
 void Node::addComponent(ComponentPtr component) {
     component->onAttachTarget(this);
     m_vComponents.push_back(component);
+}
+void Node::setVisible(bool visible) {
+    if (m_bVisible != visible) {
+        m_bVisible = visible;
+        for (auto& drawable : m_vDrawables) {
+            drawable->setVisible(visible);
+        }
+    }
 }
 void Node::setScale(float s) {
     setTransformDirty(true);

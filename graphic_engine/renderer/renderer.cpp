@@ -202,6 +202,10 @@ Renderer::Renderer(DisplayInterface* backBuffer)
     m_viewport.w = buffer.width;
     m_viewport.h = buffer.height;
     m_pZBuffer = (uint16_t*)psram_prefered_malloc(sizeof(uint16_t) * m_viewport.w * m_viewport.h);
+    m_lastTwoFrameHotRegions.push_back(m_hotRegion);
+    m_lastTwoFrameHotRegions.push_back(m_hotRegion);
+    m_lastTwoFrameVanishedRegions.push_back(Region());
+    m_lastTwoFrameVanishedRegions.push_back(Region());
 }
 Renderer::~Renderer() {
     free(m_pZBuffer);
@@ -288,9 +292,8 @@ void Renderer::drawPolygon2DScanline(Polygon2D *poly) {
     }
 }
 
-void Renderer::draw(Drawable *drawable)
+void Renderer::draw(Drawable *drawable, uint16_t* backBuffer)
 {
-    uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
     if (drawable->ofA<Polygon2D>()) {
         drawPolygon2DScanline(static_cast<Polygon2D*>(drawable));
         drawable->onFinishDraw();
@@ -389,7 +392,8 @@ void Renderer::draw(Drawable *drawable)
     drawable->onFinishDraw();
 }
 void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
-    m_dirtyWindow = m_lastHotRegion;
+    m_dirtyWindow = m_lastTwoFrameHotRegions.front().combine(m_lastTwoFrameHotRegions.back());
+    m_dirtyWindow.combine(m_lastTwoFrameVanishedRegions.front().combine(m_lastTwoFrameVanishedRegions.back()));
     std::unordered_map<uint32_t, Region> drawableRegions;
     m_hotRegion.zero();
     for (auto& drawable : drawables) {
@@ -398,13 +402,19 @@ void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
         region.y = m_viewport.h - region.y;
         drawableRegions[id] = region;
         m_lastDrawableRegion.erase(id);
-        if (drawable->getDirtyAndClear())
+        if (drawable->getDirtyAndClear()) {
             m_hotRegion.combine(region);
+        }
     }
-    // If drawable regions remain in m_lastDrawableRegion, it means they no longer exist and should be marked as dirty.
+    // If drawable regions remain in m_lastDrawableRegion, it means they are no longer exist,
+    // and their dirty region should be added to m_dirtyWindow.
+    Region vanishedRegion;
     for (auto& pair : m_lastDrawableRegion) {
-        m_dirtyWindow.combine(pair.second);
+       vanishedRegion.combine(pair.second);
     }
+    m_dirtyWindow.combine(vanishedRegion);
+    m_lastTwoFrameVanishedRegions.push_back(vanishedRegion);
+    m_lastTwoFrameVanishedRegions.pop_front();
     // swap last drawable region
     m_lastDrawableRegion = drawableRegions;
     RegionClip(m_viewport, m_hotRegion, nullptr, nullptr);
@@ -414,6 +424,7 @@ void Renderer::calculateDirtyWindow(const std::vector<DrawablePtr>& drawables) {
 
 void Renderer::renderObjects(const std::vector<DrawablePtr>& drawables)
 {
+    uint16_t* backBuffer = m_pBackBufferInterface->getRenderBuffer().data;
     calculateDirtyWindow(drawables);
     clear();
     for (auto it = m_drawStageListeners.rbegin(); it != m_drawStageListeners.rend(); ++it) {
@@ -424,14 +435,15 @@ void Renderer::renderObjects(const std::vector<DrawablePtr>& drawables)
     if (m_dirtyWindow.valid()) {
         for (auto& drawable : drawables)
         {
-            draw(drawable);
+            draw(drawable, backBuffer);
         }
     }
     BENCHMARK_CLASS_REPORT
     for (auto it = m_drawStageListeners.rbegin(); it != m_drawStageListeners.rend(); ++it) {
         (*it)->onDrawFinish(m_dirtyWindow);
     }
-    m_lastHotRegion = m_hotRegion;
+    m_lastTwoFrameHotRegions.push_back(m_hotRegion);
+    m_lastTwoFrameHotRegions.pop_front();
 }
 
 // x, y, w, h需要是未做viewport裁切的数据，这样才能计算数据偏移

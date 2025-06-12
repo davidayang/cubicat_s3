@@ -76,7 +76,7 @@ void Texture::setFrame(int nth) {
         nth += c;
     m_frame = nth;
     m_pFramePtr = getFrameData(m_frame);
-    addDirty(true);
+    markDirty();
 }
 Texture* Texture::shallowCopy() {
     return NEW Texture(m_width, m_height, m_pData, false, m_col, m_row, m_palette, m_bpp, m_hasAlpha);

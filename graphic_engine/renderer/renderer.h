@@ -15,6 +15,7 @@
 #include "graphic_engine/drawable/drawable.h"
 #include "graphic_engine/region.h"
 #include <vector>
+#include <list>
 #include <unordered_map>
 #include "graphic_engine/drawable/polygon2d.h"
 #include "render_state.h"
@@ -53,7 +54,7 @@ public:
     DisplayInterface* getBackBuffer() { return m_pBackBufferInterface;}
 private:
     void calculateDirtyWindow(const std::vector<DrawablePtr>& drawables);
-    void draw(Drawable *drawable);
+    void draw(Drawable *drawable, uint16_t* renderTarget);
     void drawPolygon2DScanline(Polygon2D *polygon);
     void pushImage(int16_t x, int16_t y, uint16_t w, uint16_t h, const uint16_t *data, bool hasMask, uint16_t maskColor);
     void clear();
@@ -61,7 +62,9 @@ private:
     Region                                  m_viewport;
     Region                                  m_dirtyWindow;
     Region                                  m_hotRegion;
-    Region                                  m_lastHotRegion;
+    // for double buffer need record last two hot regions
+    std::list<Region>                       m_lastTwoFrameHotRegions;
+    std::list<Region>                       m_lastTwoFrameVanishedRegions;
     std::unordered_map<uint32_t, Region>    m_lastDrawableRegion;
     DisplayInterface*                       m_pBackBufferInterface = nullptr;
     std::vector<DrawStageListener*>         m_drawStageListeners;

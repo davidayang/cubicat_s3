@@ -75,3 +75,10 @@ void Drawable::updateRegion() {
 DrawableMaterial Drawable::getMaterial() {
     return DrawableMaterial(m_pMaterial, this);
 }
+
+void Drawable::setVisible(bool visible) {
+    if (m_bVisible != visible) {
+        markDirty();
+        m_bVisible = visible;
+    }
+}

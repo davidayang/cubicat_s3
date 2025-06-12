@@ -5,16 +5,16 @@ namespace cubicat {
 
 class Dirtyable {
 public:
-    void addDirty(bool dirty) {
-        m_bDirty |= dirty;
+    void markDirty() {
+        m_bDirty = true;
     }
     bool getDirtyAndClear() {
-        bool ret = m_bDirty;
+        bool dirty = m_bDirty;
         m_bDirty = false;
-        return ret;
+        return dirty;
     }
 private:
-    bool    m_bDirty = false;
+    bool    m_bDirty = true;
 };
 
 template<class T, class U>
@@ -24,7 +24,8 @@ public:
     static_assert(std::is_base_of<Dirtyable, T>::value && std::is_base_of<Dirtyable, U>::value, "T, U must be Dirtyable");
     DirtyNotifyPointer(T* ptr, U* owner) : m_ptr(ptr), m_owner(owner) {}
     ~DirtyNotifyPointer() {
-        m_owner->addDirty(m_ptr->getDirtyAndClear());
+        if (m_ptr->getDirtyAndClear())
+            m_owner->markDirty();
     }
 
     T* get() const { return m_ptr; }

@@ -32,6 +32,7 @@ private:
     int                 m_enablePin = -1;
     bool                m_bInited = false;
     bool                m_bEnable = false;
+    bool                m_bDuplexMode = false;
     std::atomic<bool>   m_bPlaying = false;
     float               m_fVolume = 1.0f;
     i2s_std_config_t    m_config;
