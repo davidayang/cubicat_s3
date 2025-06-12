@@ -6,6 +6,8 @@
 #include "esp_smartconfig.h"
 #include "lwip/snmp.h"
 
+using namespace cubicat;
+
 #define MAX_RETRY 5
 int g_retry = 0;
 Wifi::ConnectState Wifi::m_sState = Wifi::CONNECT_FAIL;

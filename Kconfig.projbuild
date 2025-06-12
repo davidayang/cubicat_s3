@@ -109,40 +109,118 @@ menu "Cubicat Configuration"
     endmenu
 
     menu "Audio Configuration"
+        config USE_AUDIO_CODEC
+            bool "Use audio codec"
+            default n
+            help
+                Combine speaker and microphone with audio codec
+
+        config PDM_MICPHONE
+            bool "PDM micphone"
+            default n
+            help
+                Use pdm micphone
+
         config SPEAKER_WS_GPIO
             int "speaker ws gpio"
+            depends on !USE_AUDIO_CODEC
             default 10
             help
                 speaker ws gpio number
 
         config SPEAKER_BCK_GPIO
             int "speaker bck gpio"
+            depends on !USE_AUDIO_CODEC
             default 11
             help
                 speaker bck gpio number
 
-        config SPEAKER_DOUT_GPIO
-            int "speaker dout gpio"
+        config SPEAKER_DATA_GPIO
+            int "speaker data gpio"
             default 12
             help
-                speaker dout gpio number
+                speaker data gpio number
 
         config SPEAKER_EN_GPIO
             int "speaker enable gpio"
             default 13
             help
                 speaker enable gpio number
+                
+        config SPEAKER_SAMPLE_RATE
+            int "speaker sample rate"
+            depends on !USE_AUDIO_CODEC
+            default 16000
+            help
+                speaker sample rate
+
+        config SPEAKER_BIT_WIDTH
+            int "speaker bit width"
+            depends on !USE_AUDIO_CODEC
+            default 16
+            help
+                speaker bit width
 
         config MIC_CLK_GPIO
             int "microphone clock gpio"
+            depends on !USE_AUDIO_CODEC
             default 8
             help
-                microphone clock gpio number, pdm micphone only
+                microphone clock gpio number
+
+        config MIC_WS_GPIO
+            int "microphone ws gpio"
+            depends on !USE_AUDIO_CODEC
+            default -1
+            help
+                microphone ws gpio number, use -1 for pdm mode
 
         config MIC_DATA_GPIO
             int "microphone data gpio"
             default 9
             help
-                microphone data gpio number, pdm micphone only
+                microphone data gpio number
+        
+        config MIC_SAMPLE_RATE
+            int "microphone sample rate"
+            depends on !USE_AUDIO_CODEC
+            default 16000
+            help
+                microphone sample rate
+
+        config MIC_BIT_WIDTH
+            int "microphone bit width"
+            depends on !USE_AUDIO_CODEC
+            default 16
+            help
+                microphone bit width
+
+        config AUDIO_CODEC_BCLK_GPIO
+            int "audio codec bclk/sck gpio"
+            depends on USE_AUDIO_CODEC
+            default -1
+            help
+                audio codec bit clock gpio number
+
+        config AUDIO_CODEC_WS_GPIO
+            int "audio codec ws/lrck gpio"
+            depends on USE_AUDIO_CODEC
+            default -1
+            help
+                audio codec words select gpio number
+
+        config AUDIO_CODEC_SAMPLE_RATE
+            int "audio codec data sample rate"
+            depends on USE_AUDIO_CODEC
+            default 16000
+            help
+                audio codec data sample rate
+
+        config AUDIO_CODEC_BIT_WIDTH
+            int "audio codec data bit width"
+            depends on USE_AUDIO_CODEC
+            default 16
+            help
+                audio codec data bit width
     endmenu
 endmenu

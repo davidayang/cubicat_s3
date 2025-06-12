@@ -5,8 +5,11 @@
 #include <atomic>
 #include <mutex>
 
+namespace cubicat {
+
 class Speaker{
     friend class Cubicat;
+    friend class AudioCodec;
 public:
     Speaker(const Speaker&) = delete;
     ~Speaker();
@@ -24,8 +27,8 @@ public:
     uint16_t getSampleRate();
     uint8_t getChannels();
 private:
-    Speaker(uint32_t sampleRate = 16000, uint8_t bitPerSample = 16);
-    void init(int bclk, int ws, int dout, int enable,int busNum = I2S_NUM_1);
+    Speaker();
+    void init(int bclk, int ws, int dout, int enable, uint32_t sampleRate, uint8_t bitWidth, i2s_chan_handle_t channelHandle);
     int                 m_enablePin = -1;
     bool                m_bInited = false;
     bool                m_bEnable = false;
@@ -37,4 +40,5 @@ private:
     std::recursive_mutex m_mutex;
 };
 
+}
 #endif

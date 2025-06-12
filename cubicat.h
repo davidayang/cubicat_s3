@@ -5,6 +5,8 @@
 #include "graphic_engine/embed_game_engine.h"
 #include "utils/logger.h"
 
+namespace cubicat {
+
 class RendererDisplay : public Display , public DisplayInterface, public DrawStageListener {
     friend class Cubicat;
 public:
@@ -30,10 +32,16 @@ public:
     void loop(bool present = true);
 public:
     RendererDisplay lcd;
-    Speaker         speaker;
-    Microphone      mic;
-    Wifi            wifi;
-    UnifiedStorage  storage;
+#ifdef CONFIG_USE_AUDIO_CODEC
+    cubicat::AudioCodec     audioCodec;    
+    cubicat::Speaker&       speaker = audioCodec.getSpeaker();
+    cubicat::Microphone&    mic = audioCodec.getMic();
+#else
+    cubicat::Speaker        speaker;
+    cubicat::Microphone     mic;
+#endif
+    cubicat::Wifi           wifi;
+    cubicat::UnifiedStorage storage;
 #ifdef CONFIG_BT_ENABLED
     BLEClient& bluetooth = *BLEClient::getInstance();
 #endif
@@ -44,6 +52,8 @@ private:
     Cubicat() = default;
     ~Cubicat() = default;
 };
+
+}
 
 #define CUBICAT Cubicat::getInstance()
 #endif

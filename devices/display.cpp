@@ -5,6 +5,8 @@
 #include <string.h>
 #include "core/memory_allocator.h"
 
+using namespace cubicat;
+
 QueueHandle_t swapQueue;
 volatile bool g_bPresented = true;
 
@@ -469,4 +471,9 @@ DirtyWindow Display::drawText(uint16_t xs, uint16_t ys, const char* text, uint16
     m_dirtyWindow.combine(dw);
     return dw;
 }
+
+void Display::setRotation(DIRECTION rot) {
+    lcdRotate(rot);
+}
+
 #endif

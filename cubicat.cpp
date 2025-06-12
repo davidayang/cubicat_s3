@@ -3,6 +3,8 @@
 #include <esp_wifi.h>
 #include "js_binding/js_binding.h"
 
+using namespace cubicat;
+
 FILE* openFileFlash(const char* filename, bool binary) {
     return CUBICAT.storage.openFileFlash(filename, binary);
 }
@@ -23,7 +25,7 @@ void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sd
 {
     if (speakerEnable && sdEnable) {
         sdEnable = false;
-        LOGW("Speaker and sd card can not be enabled simultaneously\n");
+        LOGW("Speaker and sd card can not be enabled simultaneously on CubicatS3 device, because they share some pins\n");
     }
     storage.init(sdEnable);
 #ifdef CONFIG_ENABLE_LCD
@@ -35,10 +37,21 @@ void Cubicat::begin(bool wifiEnable, bool speakerEnable, bool micEnable, bool sd
          -1, -1, -1, -1);
 #endif
 #endif
+    bool pdm = false;
+#ifdef CONFIG_PDM_MICPHONE
+    pdm = true;
+#endif
+#ifdef CONFIG_USE_AUDIO_CODEC
+    audioCodec.init(CONFIG_AUDIO_CODEC_BCLK_GPIO, CONFIG_AUDIO_CODEC_WS_GPIO, CONFIG_SPEAKER_DATA_GPIO, CONFIG_MIC_DATA_GPIO,
+                    CONFIG_SPEAKER_EN_GPIO, CONFIG_AUDIO_CODEC_SAMPLE_RATE, CONFIG_AUDIO_CODEC_BIT_WIDTH, pdm);
+#else
     if (speakerEnable)
-        speaker.init(CONFIG_SPEAKER_BCK_GPIO, CONFIG_SPEAKER_WS_GPIO, CONFIG_SPEAKER_DOUT_GPIO, CONFIG_SPEAKER_EN_GPIO);
+        speaker.init(CONFIG_SPEAKER_BCK_GPIO, CONFIG_SPEAKER_WS_GPIO, CONFIG_SPEAKER_DATA_GPIO, CONFIG_SPEAKER_EN_GPIO, 
+                    CONFIG_SPEAKER_SAMPLE_RATE, CONFIG_SPEAKER_BIT_WIDTH, nullptr);
     if (micEnable)
-        mic.init(CONFIG_MIC_CLK_GPIO, CONFIG_MIC_DATA_GPIO);
+        mic.init(CONFIG_MIC_CLK_GPIO, CONFIG_MIC_WS_GPIO, CONFIG_MIC_DATA_GPIO, CONFIG_MIC_SAMPLE_RATE,
+             CONFIG_MIC_BIT_WIDTH, nullptr, pdm);
+#endif
     if (wifiEnable) {
         Wifi::init();
     }

@@ -7,8 +7,11 @@
 #include "audio_buffer.h"
 #include <vector>
 
+namespace cubicat {
+
 class Microphone {
     friend class Cubicat;
+    friend class AudioCodec;
 public:
     Microphone(const Microphone&) = delete; // no copy constructor
     ~Microphone();
@@ -24,13 +27,11 @@ public:
     // internal use only
     void readData();
 private:
-    Microphone(uint16_t sampleRate = 16000, uint8_t bitPerSample = 16);
-    void init(int clk, int din, int ws = -1, int busNum = I2S_NUM_0, bool pdm = true);
+    Microphone();
+    void init(int clk, int ws, int din, uint16_t sampleRate, uint8_t bitWidth, i2s_chan_handle_t channelHandle, bool pdm = false);
     bool                m_pdm;
     i2s_pdm_rx_config_t m_pdmConfig;
     i2s_std_config_t    m_stdConfig;
-    uint16_t            m_sampleRate = 0;
-    uint8_t             m_bitPerSample = 0;
     i2s_chan_handle_t   m_channelHandle = nullptr;
     bool                m_bInited = false;
     bool                m_bStop = true;
@@ -39,4 +40,6 @@ private:
     SemaphoreHandle_t   m_buffLock = nullptr;
     uint32_t            m_lastBuffID = 0;
 };
+
+} // namespace cubicat
 #endif

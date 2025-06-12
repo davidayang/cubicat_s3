@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+namespace cubicat{
+
 class UnifiedStorage : public MemoryObject
 {
     friend class Cubicat;
@@ -41,5 +43,5 @@ private:
     std::string m_currentPartition;
 };
 
-
+}
 #endif

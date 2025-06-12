@@ -18,6 +18,8 @@
 #define SD_DATA2    GPIO_NUM_16
 #define SD_DATA3    GPIO_NUM_15
 
+using namespace cubicat;
+
 UnifiedStorage::UnifiedStorage()
 {
 }

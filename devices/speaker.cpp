@@ -7,6 +7,8 @@
 #include "core/memory_allocator.h"
 #include <mutex>
 
+using namespace cubicat;
+
 #define PLAY_LOCK std::lock_guard<std::recursive_mutex> lock(m_mutex);
 
 void volumeAdjust(int16_t* buf, size_t length, float volumePercent) {
@@ -26,23 +28,8 @@ struct PlaySoundData
     float volume;
 };
 
-Speaker::Speaker(uint32_t sampleRate, uint8_t bitPerSample)
+Speaker::Speaker()
 {
-    m_config = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sampleRate),
-        .slot_cfg = {
-            .data_bit_width = (i2s_data_bit_width_t)bitPerSample,
-            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
-            .slot_mode = I2S_SLOT_MODE_STEREO,
-            .slot_mask = I2S_STD_SLOT_BOTH,
-            .ws_width = 1,
-            .ws_pol = true,
-            .bit_shift = true,
-            .left_align = true,
-            .big_endian = false,
-            .bit_order_lsb = false,
-        },
-    };
 }
 
 Speaker::~Speaker() {
@@ -56,31 +43,50 @@ Speaker::~Speaker() {
     }
 }
 
-void Speaker::init(int bclk, int ws, int dout, int enable, int busNum)
+void Speaker::init(int bclk, int ws, int dout, int enable, uint32_t sampleRate, uint8_t bitWidth, i2s_chan_handle_t channelHandle)
 {
     if (m_bInited) {
         return;
     }
     m_enablePin = enable;
-    // set pin config
-    m_config.gpio_cfg = {
-        .mclk = GPIO_NUM_NC,
-        .bclk = (gpio_num_t)bclk,
-        .ws = (gpio_num_t)ws,
-        .dout = (gpio_num_t)dout,
-        .din = GPIO_NUM_NC,
-        .invert_flags = {
-            .mclk_inv = false,
-            .bclk_inv = false,
-            .ws_inv = false
+    m_channelHandle = channelHandle;
+    if (!channelHandle) {
+        i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
+        chan_cfg.auto_clear = true;
+        ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &m_channelHandle, nullptr));
+    }
+    m_config = {
+        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sampleRate),
+        .slot_cfg = {
+            .data_bit_width = (i2s_data_bit_width_t)bitWidth,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+            .slot_mode = I2S_SLOT_MODE_STEREO,
+            .slot_mask = I2S_STD_SLOT_BOTH,
+            .ws_width = 1,
+            .ws_pol = true,
+            .bit_shift = true,
+            .left_align = true,
+            .big_endian = false,
+            .bit_order_lsb = false,
+        },
+        .gpio_cfg = {
+            .mclk = GPIO_NUM_NC,
+            .bclk = (gpio_num_t)bclk,
+            .ws = (gpio_num_t)ws,
+            .dout = (gpio_num_t)dout,
+            .din = GPIO_NUM_NC,
+            .invert_flags = {
+                .mclk_inv = false,
+                .bclk_inv = true,
+                .ws_inv = false
+            }
         },
     };
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG((i2s_port_t)busNum, I2S_ROLE_MASTER);
-    chan_cfg.auto_clear = true;
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &m_channelHandle, nullptr));
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(m_channelHandle, &m_config));
-    gpio_set_direction((gpio_num_t)m_enablePin, GPIO_MODE_OUTPUT);
-    gpio_set_level((gpio_num_t)m_enablePin, 0);
+    if (m_enablePin > 0) {
+        gpio_set_direction((gpio_num_t)m_enablePin, GPIO_MODE_OUTPUT);
+        gpio_set_level((gpio_num_t)m_enablePin, 0);
+    }
     m_bInited = true;
     m_pAudioPlayer = new AudioPlayer();
 }
@@ -97,10 +103,10 @@ void Speaker::setSampleRate(uint16_t sampleRate)
 }
 void Speaker::setEnable(bool enable)
 {
-    if (m_bEnable == enable) {
+    if (!m_channelHandle || m_bEnable == enable) {
         return;
     }
-    LOGE("Speaker setEnable %d\n", enable);
+    LOGI("Speaker setEnable %d\n", enable);
     PLAY_LOCK
     gpio_set_level((gpio_num_t)m_enablePin, enable);
     m_bEnable = enable;

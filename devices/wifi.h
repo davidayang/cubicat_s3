@@ -12,6 +12,8 @@ enum SmartConfigState {
 };
 typedef std::function<void(SmartConfigState status)> SmartConfigStatusCallback;
 
+namespace cubicat {
+
 class Wifi {
     friend class Cubicat;
 public:
@@ -51,4 +53,5 @@ private:
     static std::string          m_sSSID;
     static std::string          m_sPASSWD;
 };
+}
 #endif

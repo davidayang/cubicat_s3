@@ -7,6 +7,8 @@
 #include "graphic_engine/drawable/font.h"
 #endif
 
+namespace cubicat {
+
 class TouchListener {
 public:
     virtual void onTouch(const TOUCHINFO& info) = 0;
@@ -59,6 +61,7 @@ public:
     void touchLoop();
 #endif
     uint8_t getRotation() { return m_rotation; }
+    void setRotation(DIRECTION rot);
     // directly push pixels to screen
     void pushPixelsToScreen(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t*);
     void swapBuffer();
@@ -108,5 +111,7 @@ protected:
     SemaphoreHandle_t   m_bufferMutex = nullptr;
     uint16_t            m_backgroundColor = 0;
 };
+
+} // namespace Cubicat
 
 #endif
